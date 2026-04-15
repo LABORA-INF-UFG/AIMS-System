@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/html">
+
+<head>
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    <title>AIMS - Paciente</title>
+    <meta content="" name="description">
+    <meta content="" name="keywords">
+
+    <!-- Favicons -->
+    <link href="assets/img/icon.png" rel="icon">
+    <link href="assets/img/icon.png" rel="icon">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <!-- Vendor CSS Files -->
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+    <!-- Variables CSS Files. Uncomment your preferred color scheme -->
+    <link href="assets/css/variables.css" rel="stylesheet">
+    <!-- <link href="assets/css/variables-blue.css" rel="stylesheet"> -->
+    <!-- <link href="assets/css/variables-green.css" rel="stylesheet"> -->
+    <!-- <link href="assets/css/variables-orange.css" rel="stylesheet"> -->
+    <!-- <link href="assets/css/variables-purple.css" rel="stylesheet"> -->
+    <!-- <link href="assets/css/variables-red.css" rel="stylesheet"> -->
+    <!-- <link href="assets/css/variables-pink.css" rel="stylesheet"> -->
+    <link href="assets/css/main.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- ======= Header ======= -->
+    <header id="header" class="header fixed-top" data-scrollto-offset="0">
+        <div class="container-fluid d-flex align-items-center justify-content-between">
+
+            <a href="/" class="logo d-flex align-items-center scrollto me-auto me-lg-0">
+                <h1>AIMS<span>.</span></h1>
+            </a>
+            <a class="btn-getstarted scrollto" href="/registration">Cadastrar</a>
+
+        </div>
+    </header><!-- End Header -->
+
+    <section id="hero-static" class="hero-static d-flex align-items-center">
+
+        <div class="container d-flex flex-column justify-content-center align-items-center text-center position-relative"
+            data-aos="zoom-out">
+            <h2>Pacientes<span></span></h2>
+            <p>Pesquise por um paciente, atualize os dados ou realize o cadastro.</p>
+
+            <div id="search-container"> <!-- container da busca -->
+                <div id="search"> <!-- container da busca -->
+                    <textarea name="nome_buscado" id="search_box" cols="50" rows="1" maxlength="50"
+                        style="resize: none;" class="form-control" placeholder="Pesquise por um paciente"></textarea>
+                </div>
+                <div id="results"></div>
+            </div>
+
+       <div id="patient-edit-container" style="display: none;">
+        <form id="patient-data-form" class="form">
+        <div class="form-group">
+          <label for="nome_field"><strong>Nome completo</strong></label>
+          <input type="text" name="nome" id="nome_field" required class="form-control">
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="data_nascimento_field"><strong>Data de Nascimento</strong></label>
+              <input type="date" name="data_nascimento" id="data_nascimento_field" required class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="sexo_field"><strong>Sexo</strong></label>
+              <select name="sexo" id="sexo_field" required class="form-control">
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label for="peso_field"><strong>Peso (kg)</strong></label>
+              <input type="number" step="0.01" min="0" name="peso" id="peso_field" required class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="altura_field"><strong>Altura (cm)</strong></label>
+              <input type="number" min="0" name="altura" id="altura_field" required class="form-control">
+            </div>
+          </div>
+        </div>
+        </form>
+        <br>
+        <div id="bottom_menu" class="d-flex justify-content-center">
+          <a href="javascript:toggle_search_container_visibility()" id="btn" class="btn btn-outline-secondary" style="color: var(--color-primary); margin-right: 10px;">Voltar</a>
+          <button id="update_form_btn" form="patient-data-form" class="btn btn-primary" style="background: var(--color-primary);">Atualizar</button>
+        </div>
+      </div>
+
+
+
+    </section>
+
+    <a href="#" class="scroll-top d-flex align-items-center justify-content-center"><i
+            class="bi bi-arrow-up-short"></i></a>
+
+    <div id="preloader"></div>
+
+    <!-- Vendor JS Files -->
+    <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/vendor/aos/aos.js"></script>
+    <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+    <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+    <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+    <script src="assets/vendor/php-email-form/validate.js"></script>
+
+    <script src="assets/js/main.js"></script>
+
+    <!-- Template Main JS File -->
+    <script src="assets/js/main.js"></script>
+
+    <!--Script responsável pela atualização da UI e display dos pacientes buscados-->
+    <script>
+
+     let timesOut = [];
+const notFoundWarn = document.createElement('span');
+notFoundWarn.innerText = 'Nenhum paciente encontrado com este nome.';
+notFoundWarn.classList.add('not-found-warning'); // Adiciona a classe CSS "not-found-warning" à span
+
+let patients = null;
+let search_container_div = document.getElementById("search-container");
+let edit_patient_div = document.getElementById("patient-edit-container");
+
+async function deletePatient(index) {
+  const confirmDelete = confirm('Tem certeza que deseja deletar o paciente?');
+  if (confirmDelete) {
+    const response = await fetch(`/deletepatient?id=${patients[index]._id}`, {
+      method: 'DELETE'
+    });
+    if (response.status === 204) {
+      patients.splice(index, 1);
+      alert('Paciente removido com sucesso');
+      updateSearchResults();
+    } else {
+      console.log('Falha ao excluir paciente');
+    }
+  }
+}
+
+function edit_patient_view(params) {
+  let btn_index = params.srcElement.value;
+  let patient_form = document.getElementById("patient-data-form");
+  let update_form_btn = document.getElementById("update_form_btn");
+
+  update_form_btn.name = 'index';
+  update_form_btn.value = btn_index;
+
+  search_container_div.style.display = 'none';
+  edit_patient_div.style.display = 'unset';
+
+  patient_form.nome.value = patients[btn_index].nome;
+  patient_form.data_nascimento.value = (patients[btn_index].data_nascimento).slice(0, 10);
+  patient_form.altura.value = patients[btn_index].altura;
+  patient_form.peso.value = patients[btn_index].peso;
+  patient_form.sexo.value = patients[btn_index].sexo;
+}
+
+function toggle_search_container_visibility() {
+  search_container_div.style.display = 'unset';
+  edit_patient_div.style.display = 'none';
+}
+
+function updateSearchResults() {
+  const results = document.getElementById('results');
+  results.innerHTML = '';
+
+  if (Object.keys(patients).length !== 0) {
+    let patient_block = null;
+    let span_nome = null;
+    let span_idade = null;
+    let idade = null;
+    let edit_button = null;
+    let delete_button = null;
+
+    patients.forEach((patient, index) => {
+      if (!patient.deleted) { // Verificar se o paciente foi deletado
+        patient_block = document.createElement('div');
+        span_nome = document.createElement('span');
+        span_idade = document.createElement('span');
+        edit_button = document.createElement('button');
+        delete_button = document.createElement('button');
+
+        span_nome.innerText = patient.nome;
+
+        edit_button.name = 'index';
+        edit_button.value = index;
+        edit_button.innerText = 'Editar';
+        edit_button.onclick = edit_patient_view;
+        edit_button.className = 'system-button';
+
+        delete_button.name = 'index';
+        delete_button.value = index;
+        delete_button.innerText = 'Deletar';
+        delete_button.onclick = function() {
+          deletePatient(index);
+          this.parentNode.remove();
+        };
+        delete_button.className = 'system-button delete-button';
+
+        idade = Date.now() - Date.parse(patient.data_nascimento);
+        idade = new Date(idade);
+        idade = idade.getFullYear();
+        idade = idade - 1970;
+
+
+        span_idade.innerText = ` - ${idade.toString()} anos`;
+
+
+        patient_block.appendChild(span_nome);
+        patient_block.appendChild(span_idade);
+        patient_block.appendChild(edit_button);
+        patient_block.appendChild(delete_button);
+
+        results.appendChild(patient_block);
+      }
+    });
+  } else {
+    results.appendChild(notFoundWarn);
+  }
+}
+
+const search_box = document.getElementById('search_box');
+search_box.addEventListener('keyup', (event) => {
+  event.preventDefault();
+
+  for (let index = 0; index < timesOut.length - 1; index++) {
+    clearTimeout(timesOut[index]);
+  }
+
+  timesOut.push(setTimeout(async () => {
+    timesOut.length = 0;
+
+    try {
+      if (search_box.value != '') {
+        const res = await fetch('/getpatients?' + new URLSearchParams({ nome: search_box.value }));
+        patients = await res.json();
+        updateSearchResults();
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }, 500));
+});
+
+
+    </script>
+
+    <!--Script responsável por atualizar o funcionário-->
+    <script>
+        // set the max date of the date selection for today
+        document.getElementById("data_nascimento_field").setAttribute("max", new Date().toISOString().split("T")[0]);
+
+        // get the form object
+        const form = document.querySelector('form');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const nome = form.nome.value;
+            const data_nascimento = form.data_nascimento.value;
+            const altura = form.altura.value;
+            const peso = form.peso.value;
+            const sexo = form.sexo.value;
+            const _id = patients[form.index.value]._id;
+
+            try {
+
+                const res = await fetch('/updatepatient', {
+                    method: 'PUT',
+                    body: JSON.stringify({ nome, data_nascimento, altura, peso, sexo, _id }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (res.status === 200) {
+                    const results = document.getElementById('results');
+                    results.innerHTML = '';
+                    window.alert("Dados do paciente atualizado com sucesso!");
+                    form.reset();
+                    toggle_search_container_visibility();
+                }
+                else {
+                    window.alert("Paciente não atualizado. Cheque se os campos foram preenchidos corretamente.");
+                }
+            }
+            catch (error) {
+                console.log(error);
+            }
+        });
+    </script>
+
+</body>
+
+</html>

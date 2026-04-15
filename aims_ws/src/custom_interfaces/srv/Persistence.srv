@@ -1,0 +1,9 @@
+string nome_coleta
+string nome_paciente
+string modelo_nic_rx
+string modelo_nic_tx
+string posicao_paciente
+float32 distancia_antenas_metros
+int64 num_frames
+---
+string response

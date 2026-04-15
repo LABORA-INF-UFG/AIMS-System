@@ -1,0 +1,15 @@
+uint64 pktid
+uint16 devicetype
+int8 packetformat
+uint16 firmwareversion
+uint16 cbw
+uint64 carrierfreq
+uint64 samplingrate
+uint32 subcarrierbandwidth
+uint16 numtones
+uint8 numtx
+uint8 numrx
+uint8 numess
+uint16 numcsi
+uint8 ant_sel
+int16[] subcarrierindex

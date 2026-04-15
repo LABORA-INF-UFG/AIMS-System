@@ -1,0 +1,17 @@
+aims_ws/build/
+aims_ws/log/
+aims_ws/install/
+web/build/
+web/log/
+web/install/
+Capturas/
+__pycache__
+# IDE and personal stuff
+.vscode
+.idea
+PicoscenesToolbox/
+githubdesktop.appimage
+env/
+build/
+install/
+log/

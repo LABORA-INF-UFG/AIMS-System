@@ -1,0 +1,6 @@
+uint64 pktid
+custom_interfaces/PktRxBasic rxsbasic
+custom_interfaces/PktRxExtraInfo rxextrainfo
+custom_interfaces/PktCSIMeta csimeta
+custom_interfaces/PktCSISignal csi
+custom_interfaces/PktTxExtraInfo txextrainfo

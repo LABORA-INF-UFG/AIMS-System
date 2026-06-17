@@ -1,0 +1,116 @@
+# =============================================================================
+# AIMS-System Docker Compose
+#
+# Services:
+#   ros2-nodes  — ROS2 processing nodes (CSI publisher, breath estimator, etc.)
+#   rosbridge   — WebSocket bridge between ROS2 DDS and web frontend
+#   web         — Express.js web server (patient management + monitoring UI)
+#   mongo       — MongoDB for patient data persistence
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose up -d --build  # Rebuild and start
+#   docker compose logs -f        # Follow all logs
+#   docker compose down           # Stop and remove containers
+#
+# Note: PicoScenes runs on the host machine (not containerized).
+#       See picoscenes/README.md for host setup instructions.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # ROS2 Processing Nodes
+  # Uses host networking for DDS discovery (required for ROS2 distributed comms
+  # and to receive UDP packets forwarded by PicoScenes on the host).
+  # ---------------------------------------------------------------------------
+  ros2-nodes:
+    image: aims-system-ros2:latest
+    build:
+      context: .
+      dockerfile: docker/ros2/Dockerfile
+    container_name: aims-ros2-nodes
+    network_mode: "host"
+    ipc: host
+    env_file: .env
+    environment:
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-5}
+      - FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-/app/aims_ws/src/fastdds_profile.xml}
+      - KERAS_APNEA_MODEL=${KERAS_APNEA_MODEL:-/app/models/apenaDetection_AIMS_model1.h5}
+      - AIMS=/app
+    volumes:
+      - captures:/app/Capturas
+      - ./models:/app/models:ro
+    depends_on:
+      mongo:
+        condition: service_started
+    restart: unless-stopped
+    command: ["ros2", "launch", "csi", "aims_launch.py"]
+
+  # ---------------------------------------------------------------------------
+  # Rosbridge WebSocket Server
+  # Bridges ROS2 DDS topics to WebSocket for the web frontend.
+  # Also uses host networking for DDS discovery with ros2-nodes.
+  # ---------------------------------------------------------------------------
+  rosbridge:
+    image: aims-system-ros2:latest
+    build:
+      context: .
+      dockerfile: docker/ros2/Dockerfile
+    container_name: aims-rosbridge
+    network_mode: "host"
+    ipc: host
+    env_file: .env
+    environment:
+      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-5}
+      - FASTRTPS_DEFAULT_PROFILES_FILE=${FASTRTPS_DEFAULT_PROFILES_FILE:-/app/aims_ws/src/fastdds_profile.xml}
+    depends_on:
+      ros2-nodes:
+        condition: service_started
+    restart: unless-stopped
+    command: >
+      ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+
+  # ---------------------------------------------------------------------------
+  # Web Server (Express.js)
+  # Patient management UI and monitoring dashboard.
+  # Connects to MongoDB for persistence and rosbridge via WebSocket.
+  # ---------------------------------------------------------------------------
+  web:
+    image: aims-system-web:latest
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    container_name: aims-web
+    ports:
+      - "${WEB_PORT:-3001}:3001"
+    env_file: .env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017/mycaredb}
+      - WEB_PORT=3001
+    depends_on:
+      mongo:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # MongoDB
+  # Persistent storage for patient data.
+  # ---------------------------------------------------------------------------
+  mongo:
+    image: mongo:7
+    container_name: aims-mongo
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    restart: unless-stopped
+
+# Named volumes for data persistence across container restarts
+volumes:
+  mongo_data:
+    driver: local
+  captures:
+    driver: local

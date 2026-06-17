@@ -1,17 +1,36 @@
+# ROS2 build artifacts
 aims_ws/build/
 aims_ws/log/
 aims_ws/install/
+
+# Web build artifacts
 web/build/
 web/log/
 web/install/
+web/node_modules/
+
+# CSI captures
 Capturas/
+
+# Python
 __pycache__
-# IDE and personal stuff
+*.pyc
+*.pyo
+
+# IDE and personal
 .vscode
 .idea
+
+# External toolbox (cloned separately)
 PicoscenesToolbox/
+
+# Misc
 githubdesktop.appimage
 env/
 build/
 install/
 log/
+
+# Environment (contains credentials)
+.env
+web/.env

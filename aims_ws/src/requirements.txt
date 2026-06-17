@@ -1,3 +1,6 @@
+# AIMS Python Dependencies
+# Note: PicoscenesToolbox is installed separately from GitHub
+# Note: oct2py excluded (experimental Octave nodes only)
 tensorflow[and-cuda]
 scikit-learn
 numpy
@@ -7,4 +10,3 @@ scipy
 pyserial
 matplotlib
 pynput
-oct2py

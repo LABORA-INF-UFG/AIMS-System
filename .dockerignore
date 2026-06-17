@@ -1,2 +1,34 @@
+# Git
 **/.git
+
+# Python
 **/env
+**/__pycache__
+**/*.pyc
+**/*.pyo
+
+# Node
+**/node_modules
+
+# ROS2 build artifacts
+aims_ws/build/
+aims_ws/log/
+aims_ws/install/
+
+# IDE
+.vscode
+.idea
+
+# Project artifacts
+Capturas/
+PicoscenesToolbox/
+
+# Agent configuration
+.agents/
+
+# Docker (avoid recursive copy)
+docker-compose.yml
+
+# Large binary files
+*.h5
+*.tflite

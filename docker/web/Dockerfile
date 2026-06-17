@@ -4,7 +4,7 @@
 # =============================================================================
 
 # ============ STAGE 1: Builder ============
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -14,8 +14,15 @@ COPY web/package.json web/package-lock.json ./
 # Install all dependencies (including devDependencies for build)
 RUN npm ci
 
+# Copy template files and assets for Tailwind analysis
+COPY web/views/ ./views/
+COPY web/public/ ./public/
+
+# Build CSS
+RUN npm run build:css
+
 # ============ STAGE 2: Runtime ============
-FROM node:18-alpine AS runtime
+FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
@@ -26,6 +33,9 @@ RUN npm ci --omit=dev && \
 
 # Copy application source
 COPY web/ ./
+
+# Copy compiled tailwind.css from builder
+COPY --from=builder /app/public/assets/css/tailwind.css ./public/assets/css/tailwind.css
 
 # Remove dev files not needed in production
 RUN rm -f .gitignore

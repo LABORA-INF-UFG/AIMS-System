@@ -23,11 +23,6 @@ const app = express();
 app.use(express.static('public'));
 app.use(express.json());
 
-// Bootstrap static assets
-app.use('/css', express.static(path.join(__dirname, 'node_modules/bootstrap/dist/css')));
-app.use('/js', express.static(path.join(__dirname, 'node_modules/bootstrap/dist/js')));
-app.use('/js', express.static(path.join(__dirname, 'node_modules/jquery/dist')));
-
 // Routes
 app.use(patientRoutes);
 app.use(monitoringRoutes);

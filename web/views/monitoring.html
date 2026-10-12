@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
 
-  <title>AIMS - Monitoramento</title>
+  <title>AIMS - Monitoring</title>
   <meta name="description" content="AIMS Vital Sign Monitoring Dashboard">
 
   <!-- Favicons -->
@@ -47,17 +47,17 @@
           <!-- Populating Buffers -->
           <div id="loading" class="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm flex flex-col items-center justify-center space-y-3">
             <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <span class="text-sm font-semibold text-primary">Preenchendo buffers...</span>
+            <span class="text-sm font-semibold text-primary">Filling buffers...</span>
           </div>
           
           <!-- Establishing connection -->
           <div id="connecting" class="bg-sky-50 border border-sky-100 text-sky-800 p-4 rounded-xl text-center font-medium animate-pulse mt-4">
-            <i class="bi bi-wifi text-lg me-1"></i> Estabelecendo conexão com o ROSbridge...
+            <i class="bi bi-wifi text-lg me-1"></i> Connecting to ROSbridge...
           </div>
 
           <!-- Connection Error -->
           <div id="error" style="display: none;" class="bg-red-50 border border-red-100 text-red-800 p-4 rounded-xl text-center font-medium mt-4">
-            <i class="bi bi-exclamation-triangle-fill text-lg me-1"></i> Erro ao conectar com o WebSocket do ROSbridge.
+            <i class="bi bi-exclamation-triangle-fill text-lg me-1"></i> Failed to connect to the ROSbridge WebSocket.
           </div>
         </div>
 
@@ -69,21 +69,21 @@
             
             <!-- Switches Card -->
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h3 class="text-base font-bold text-gray-900 mb-4">Opções do Painel</h3>
+              <h3 class="text-base font-bold text-gray-900 mb-4">Dashboard Options</h3>
               <div class="grid grid-cols-3 gap-4">
                 
-                <!-- Switch: Visualização -->
+                <!-- Switch: Plots -->
                 <label class="flex flex-col items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:border-primary/30 transition">
-                  <span class="text-xs font-semibold text-gray-600 mb-2">Gráficos</span>
+                  <span class="text-xs font-semibold text-gray-600 mb-2">Plots</span>
                   <div class="relative">
                     <input type="checkbox" id="showplots" class="sr-only peer">
                     <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
                   </div>
                 </label>
 
-                <!-- Switch: Persistência -->
+                <!-- Switch: Persistence -->
                 <label class="flex flex-col items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:border-primary/30 transition">
-                  <span class="text-xs font-semibold text-gray-600 mb-2">Persistir</span>
+                  <span class="text-xs font-semibold text-gray-600 mb-2">Persist</span>
                   <div class="relative">
                     <input type="checkbox" id="toggleButton" class="sr-only peer">
                     <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
@@ -105,28 +105,28 @@
             <!-- Warning Card (Apnea / No Person) -->
             <div id="no_person_div" style="display:none;" class="bg-red-50 border-2 border-red-200 p-6 rounded-2xl text-center space-y-2 animate-pulse-slow">
               <div class="text-red-600 text-3xl"><i class="bi bi-person-x-fill"></i></div>
-              <h4 class="text-lg font-bold text-red-950">Paciente não detectado</h4>
-              <p class="text-sm text-red-700">O sensor não está identificando presença no raio de detecção.</p>
+              <h4 class="text-lg font-bold text-red-950">Subject not detected</h4>
+              <p class="text-sm text-red-700">The sensor is not detecting any presence within its range.</p>
             </div>
 
             <div id="apnea_warning_div" style="display:none;" class="bg-red-600 border-2 border-red-700 p-6 rounded-2xl text-center text-white space-y-2 animate-bounce">
               <div class="text-3xl"><i class="bi bi-exclamation-octagon-fill"></i></div>
-              <h4 class="text-xl font-bold">Apneia Detectada!</h4>
-              <p class="text-sm opacity-90">Alerta de parada ou queda severa no ciclo respiratório.</p>
+              <h4 class="text-xl font-bold">Apnea Detected!</h4>
+              <p class="text-sm opacity-90">Alert: breathing has stopped or dropped severely.</p>
             </div>
 
             <!-- Vitals Displays -->
-            <div id="container-resultados" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               <!-- Metric Card: Breathing Rate -->
               <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48 relative overflow-hidden">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">F. Respiratória</span>
+                  <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Resp. rate</span>
                   <span class="text-sky-500 text-xl" id="lung-beat" style="display: none;"><i class="bi bi-lungs-fill"></i></span>
                 </div>
                 <div class="my-3 flex items-baseline space-x-1">
                   <span id="br_value" class="text-5xl font-black text-gray-900 tracking-tight">0</span>
-                  <span class="text-sm text-gray-500 font-semibold">irpm</span>
+                  <span class="text-sm text-gray-500 font-semibold">breaths/min</span>
                 </div>
                 <div class="border-t border-gray-100 pt-2 flex justify-between items-center text-xs text-gray-500">
                   <span>Ground Truth:</span>
@@ -137,7 +137,7 @@
               <!-- Metric Card: Heart Rate -->
               <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48 relative overflow-hidden">
                 <div class="flex items-center justify-between">
-                  <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">F. Cardíaca</span>
+                  <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Heart rate</span>
                   <span class="text-red-500 text-xl" id="heart-beat" style="display: none;"><i class="bi bi-heart-fill"></i></span>
                 </div>
                 <div class="my-3 flex items-baseline space-x-1">
@@ -160,41 +160,41 @@
             <!-- Tab Buttons Header -->
             <div class="border-b border-gray-150 pb-2">
               <nav class="flex flex-wrap gap-2" aria-label="Tabs" id="nav-tab">
-                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-white focus:outline-none cursor-pointer" id="nav-histograma-tab" data-target="nav-histograma">Histograma</button>
-                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-mapa-tab" data-target="nav-mapa">Mapa de Calor</button>
-                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-mapa-mmw-tab" data-target="nav-mapa-mmw">Mapa de Posição</button>
-                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-camera-visao-tab" data-target="nav-camera-visao">Câmera</button>
+                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-white focus:outline-none cursor-pointer" id="nav-histogram-tab" data-target="nav-histogram">Histogram</button>
+                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-heatmap-tab" data-target="nav-heatmap">Heatmap</button>
+                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-heatmap-mmw-tab" data-target="nav-heatmap-mmw">Position Map</button>
+                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-camera-vision-tab" data-target="nav-camera-vision">Camera</button>
               </nav>
             </div>
 
             <!-- Tab Content Panes -->
             <div class="tab-content" id="nav-tabContent">
               
-              <!-- Pane: Histograma -->
-              <div class="tab-pane" id="nav-histograma">
-                <canvas id="plot-histograma" class="max-h-[350px] w-full"></canvas>
+              <!-- Pane: Histogram -->
+              <div class="tab-pane" id="nav-histogram">
+                <canvas id="plot-histogram" class="max-h-[350px] w-full"></canvas>
               </div>
 
-              <!-- Pane: Mapa de Calor -->
-              <div class="tab-pane hidden" id="nav-mapa">
+              <!-- Pane: Heatmap -->
+              <div class="tab-pane hidden" id="nav-heatmap">
                 <div class="flex flex-col items-center justify-center py-6">
                   <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3" id="loadingHeatmap"></div>
                   <img id="heatmapImg" class="rounded-xl border border-gray-200 max-h-[300px]" style="display: none;">
                 </div>
               </div>
 
-              <!-- Pane: Mapa de Posição -->
-              <div class="tab-pane hidden" id="nav-mapa-mmw">
+              <!-- Pane: Position Map -->
+              <div class="tab-pane hidden" id="nav-heatmap-mmw">
                 <div class="flex flex-col items-center justify-center py-6">
                   <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3" id="loadingHeatmapMmW"></div>
                   <img id="heatmapMmWImg" class="rounded-xl border border-gray-200 max-h-[300px]" style="display: none;">
                 </div>
               </div>
 
-              <!-- Pane: Câmera -->
-              <div class="tab-pane hidden" id="nav-camera-visao">
+              <!-- Pane: Camera -->
+              <div class="tab-pane hidden" id="nav-camera-vision">
                 <div class="flex items-center justify-center py-4 bg-gray-50 rounded-2xl border border-gray-150">
-                  <img id="img-camera-visao" class="rounded-xl max-h-[300px] shadow-sm">
+                  <img id="img-camera-vision" class="rounded-xl max-h-[300px] shadow-sm">
                 </div>
               </div>
 
@@ -218,24 +218,24 @@
         <div>
           <h3 class="text-xl font-bold text-gray-900 flex items-center space-x-2">
             <i class="bi bi-database-fill-add text-primary"></i>
-            <span>Painel de Persistência</span>
+            <span>Persistence Panel</span>
           </h3>
-          <p class="text-xs text-gray-500 mt-1">Configure os metadados da coleta de dados de CSI.</p>
+          <p class="text-xs text-gray-500 mt-1">Configure the metadata of the CSI capture.</p>
         </div>
         <button type="button" id="closeButton" 
           class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition">
-          Fechar
+          Close
         </button>
       </div>
 
       <!-- Metadata Form -->
       <div class="bg-gray-50 p-6 rounded-2xl border border-gray-200">
-        <form id="metadados_form" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <form id="metadata-form" class="grid grid-cols-1 md:grid-cols-2 gap-5">
           
-          <!-- Nome da coleta -->
+          <!-- Capture name -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700">Nome da coleta</label>
-            <input type="text" name="capture_name" placeholder="Nome da coleta" required
+            <label class="block text-sm font-semibold text-gray-700">Capture name</label>
+            <input type="text" name="capture_name" placeholder="Capture name" required
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
           </div>
 
@@ -247,23 +247,23 @@
             <p id="subject_id_error" class="mt-1 text-xs text-red-600" style="display: none;">Subject ID is required and may only contain letters, digits, "_" and "-".</p>
           </div>
 
-          <!-- Qtd. de frames -->
+          <!-- Number of frames -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700">Qtd. de frames</label>
+            <label class="block text-sm font-semibold text-gray-700">Number of frames</label>
             <input type="number" name="num_frames" min="0" value="12000" required
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
           </div>
 
-          <!-- Distância entre antenas -->
+          <!-- Antenna distance -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700">Distância entre antenas (cm)</label>
+            <label class="block text-sm font-semibold text-gray-700">Antenna distance (cm)</label>
             <input type="number" name="antenna_distance_cm" min="0" value="100" required
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
           </div>
 
-          <!-- Posição do paciente -->
+          <!-- Subject position -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700">Posição do paciente</label>
+            <label class="block text-sm font-semibold text-gray-700">Subject position</label>
             <select name="subject_position"
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
               <option value="sitting_front">Sitting, front</option>
@@ -291,18 +291,18 @@
 
       <!-- Action Button & Progress -->
       <div class="space-y-4 pt-4 border-t border-gray-150">
-        <button name="btn_status" form="metadados_form" id="btn_persistencia" value="0"
+        <button name="btn_status" form="metadata-form" id="btn-persistence" value="0"
           class="w-full py-3 bg-primary hover:bg-primary-dark text-white rounded-xl font-bold shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary/50 cursor-pointer transition">
-          Iniciar Persistência
+          Start Persistence
         </button>
 
         <div id="progress_div" style="display: none;" class="space-y-2">
           <div class="flex justify-between text-sm font-semibold text-gray-700">
-            <span>Progresso da Coleta</span>
-            <span id="texto_progresso" class="text-primary">Pacotes: 0/12000</span>
+            <span>Capture Progress</span>
+            <span id="progress-text" class="text-primary">Packets: 0/12000</span>
           </div>
           <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden border border-gray-300">
-            <div id="barra_progresso" class="bg-primary h-full transition-all duration-300" style="width: 0%;"></div>
+            <div id="progress-bar" class="bg-primary h-full transition-all duration-300" style="width: 0%;"></div>
           </div>
         </div>
       </div>
@@ -313,7 +313,7 @@
   <!-- ======= Footer ======= -->
   <footer class="bg-white border-t border-gray-200 py-6 text-center text-sm text-gray-500">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <p>&copy; 2026 AIMS System. Todos os direitos reservados.</p>
+      <p>&copy; 2026 AIMS System. All rights reserved.</p>
     </div>
   </footer>
 
@@ -324,17 +324,17 @@
   
   <!-- Chart & Layout Controllers -->
   <script>
-    var histograma;
-    var sinal;
+    var histogram;
+    var signal;
 
     document.getElementById('showplots').checked = false;
 
-    // Switch Visualização callback
+    // Plots switch callback
     document.getElementById('showplots').addEventListener('change', (e) => {
       const cb = document.getElementById('showplots');
       if (cb.checked) {
         document.getElementById('plots').style.display = 'block';
-        criaGrafico('nav-histograma-tab');
+        createChart('nav-histogram-tab');
       } else {
         document.getElementById('plots').style.display = 'none';
       }
@@ -365,26 +365,26 @@
         document.getElementById(targetId).classList.remove('hidden');
         
         // Load graph data
-        criaGrafico(this.id);
+        createChart(this.id);
       });
     });
 
-    const histogramaContainer = document.getElementById('plot-histograma');
+    const histogramContainer = document.getElementById('plot-histogram');
 
-    function criaGrafico(id) {
-      if (id == 'nav-histograma-tab' && !graficoHistogramaAtivo) {
-        ativaGrafico(id);
+    function createChart(id) {
+      if (id == 'nav-histogram-tab' && !histogramChartActive) {
+        activateChart(id);
         const occurrences = Array(50).fill(0);
         const clabels = [];
         for (let i = 0; i < 50; i++) {
           clabels.push(i.toString());
         }
-        histograma = new Chart(histogramaContainer, {
+        histogram = new Chart(histogramContainer, {
           type: 'bar',
           data: {
             labels: clabels,
             datasets: [{
-              label: 'Taxa de respiração por minuto',
+              label: 'Breaths per minute',
               data: occurrences,
               borderWidth: 1,
               backgroundColor: 'rgba(14, 162, 189, 0.2)',
@@ -401,21 +401,21 @@
             }
           }
         });
-      } else if (id == 'nav-mapa-tab' && !graficoMapaAtivo) {
-        ativaGrafico(id);
-      } else if (id == 'nav-mapa-mmw-tab' && !graficoMapaMmWAtivo) {
-        ativaGrafico(id);
+      } else if (id == 'nav-heatmap-tab' && !heatmapChartActive) {
+        activateChart(id);
+      } else if (id == 'nav-heatmap-mmw-tab' && !mmwaveHeatmapChartActive) {
+        activateChart(id);
       }
     }
 
-    function atualizaHistograma(value) {
-      if (value > 0 && histograma) {
-        histograma.config.data.datasets[0].data[value] = histograma.config.data.datasets[0].data[value] + 1;
-        histograma.update();
+    function updateHistogram(value) {
+      if (value > 0 && histogram) {
+        histogram.config.data.datasets[0].data[value] = histogram.config.data.datasets[0].data[value] + 1;
+        histogram.update();
       }
     }
 
-    function atualizaMapaImg(data) {
+    function updateHeatmapImage(data) {
       const heatmapImg = document.getElementById("heatmapImg");
       heatmapImg.style.display = 'block';
       document.getElementById("loadingHeatmap").style.display = 'none';
@@ -449,12 +449,12 @@
     });
 
     // Keep apnea visualization clean
-    // Overriding the default show/hide of tx_apneia in rosControllerMonitoring.js to use Tailwind warning div
+    // Overriding the default show/hide of tx_apnea in rosControllerMonitoring.js to use Tailwind warning div
     const checkApneaInterval = setInterval(() => {
-      const tx_apneia = document.getElementById('tx_apneia');
+      const tx_apnea = document.getElementById('tx_apnea');
       const apnea_warning_div = document.getElementById('apnea_warning_div');
-      if (tx_apneia && apnea_warning_div) {
-        if (tx_apneia.style.display === 'inline' || tx_apneia.style.display === 'block') {
+      if (tx_apnea && apnea_warning_div) {
+        if (tx_apnea.style.display === 'inline' || tx_apnea.style.display === 'block') {
           apnea_warning_div.style.display = 'block';
         } else {
           apnea_warning_div.style.display = 'none';
@@ -466,7 +466,7 @@
   <!-- Progress bar override for custom HTML progress tag -->
   <script>
     const checkProgressInterval = setInterval(() => {
-      const progressTag = document.getElementById('barra_progresso');
+      const progressTag = document.getElementById('progress-bar');
       if (progressTag) {
         // We read from the default values and update the width percentage instead of native progress element if it updates
         const maxVal = progressTag.getAttribute('max');

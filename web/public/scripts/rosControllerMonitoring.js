@@ -1,8 +1,8 @@
-var graficoHistogramaAtivo = false;
-var graficoSinalAtivo = false;
-var graficoMapaAtivo = false;
-var graficoSinalAtivo2 = false;
-var graficoMapaMmWAtivo = false;
+var histogramChartActive = false;
+var signalChartActive = false;
+var heatmapChartActive = false;
+var signalChartActive2 = false;
+var mmwaveHeatmapChartActive = false;
 
 var buffer1 = []; //for subcarrier 1
 var buffer2 = []; //for subcarrier 2
@@ -56,7 +56,7 @@ let listenerThereIsPerson = new ROSLIB.Topic({
   messageType: 'std_msgs/msg/Bool'
 });
 
-// var atualizada pelo nó da there_is_person, com default em 'true'
+// Updated by the there_is_person node; defaults to 'true'
 let is_person = true;
 let equipments = {
   camera: false,
@@ -64,7 +64,7 @@ let equipments = {
   none: true
 }
 
-// Verifica se os nós da visão e da mmwave estão conectados
+// Check whether the vision and mmWave nodes are connected
 setInterval(() => {
   ros.getNodes((res) => {
     //console.log(res)
@@ -78,7 +78,7 @@ setInterval(() => {
     }
     if(!equipments.mmwave && !equipments.camera){
       equipments.none = true
-      console.log("Câmera e MMwave desconectadas.")
+      console.log("Camera and mmWave disconnected.")
     }
     
   });
@@ -86,11 +86,11 @@ setInterval(() => {
 
 
 /**
- * Seta o valor da var global is_person.
+ * Sets the value of the global is_person variable.
  *
- * @param {string} issuer - Nome do callback do equipamento que está setando o valor de is_person.
- * Podendo ser 'camera' ou 'mmwave'.
- * @param {boolean} status - Status da detecção da pessoa pelo equipamento.
+ * @param {string} issuer - Name of the equipment callback that is setting is_person.
+ * Can be 'camera' or 'mmwave'.
+ * @param {boolean} status - Person detection status reported by the equipment.
  */
 function setIs_person(issuer, status) {
   if (equipments.camera && equipments.mmwave){
@@ -138,12 +138,12 @@ let listenerHeatmap = new ROSLIB.Topic({
   name: '/heatmap',
   messageType: 'sensor_msgs/msg/Image'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerHeatmap.subscribe(function(message) {
   //console.log('Received image on ' + listenerHeatmap.name + ': ' + message);
-  //calling the atualization function
-  if (graficoMapaAtivo)
-      atualizaMapaImg(message);
+  //calling the update function
+  if (heatmapChartActive)
+      updateHeatmapImage(message);
 });
 
 //Subscribing to a Topic for the camera image from Vision Team
@@ -153,8 +153,8 @@ let listenerVisionCameraImage = new ROSLIB.Topic({
   messageType: 'sensor_msgs/msg/Image'
 });
 listenerVisionCameraImage.subscribe((message)=>{
-  const img = 'data:image/png;base64,' + message.data; // TODO: adequar para o formato enviado pelo código da Visão
-  document.getElementById('img-camera-visao').src = img
+  const img = 'data:image/png;base64,' + message.data; // TODO: adapt to the format sent by the Vision code
+  document.getElementById('img-camera-vision').src = img
 });
 
 //Subscribing to a Topic for the mmWave heatmap image
@@ -164,10 +164,10 @@ let listenerHeatmapMmW = new ROSLIB.Topic({
   messageType: 'sensor_msgs/msg/Image'
 });
 let showOnce = 0;
-// Função callback
+// Callback
 listenerHeatmapMmW.subscribe(function(message) {
    const imgData = 'data:image/png;base64,' + message.data;
-   if (graficoMapaMmWAtivo){
+   if (mmwaveHeatmapChartActive){
    	showOnce = showOnce + 1;   	
 	if (showOnce % 1 == 0) {
 	   	const imgElement = document.getElementById('heatmapMmWImg');
@@ -183,7 +183,7 @@ let listenerBRMmW = new ROSLIB.Topic({
   name : '/brmmw',
   messageType : 'custom_interfaces/msg/MmWVitalSignal'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerBRMmW.subscribe(function(message) {
   console.log('Received message on ' + listenerBRMmW.name + ': ' + message.rate);
   
@@ -201,7 +201,7 @@ let listenerHRMmW = new ROSLIB.Topic({
   name : '/hrmmw',
   messageType : 'custom_interfaces/msg/MmWVitalSignal'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerHRMmW.subscribe(function(message) {
   console.log('Received message on ' + listenerHRMmW.name + ': ' + message.rate);
   //let decoded = decodeMessage(message);
@@ -215,7 +215,7 @@ let listenerBRCardiofi = new ROSLIB.Topic({
   name : '/breath_estimate_cardiofi',
   messageType : 'std_msgs/msg/Float32'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerBRCardiofi.subscribe(function(message) {
   console.log('Received message on ' + listenerBRCardiofi.name + ': ' + message.data);
   //var decoded = decodeMessage(message);
@@ -228,7 +228,7 @@ let listenerHRCardiofi = new ROSLIB.Topic({
   name : '/heart_estimate_cardiofi',
   messageType : 'std_msgs/msg/Float32'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerHRCardiofi.subscribe(function(message) {
   console.log('Received message on ' + listenerBRCardiofi.name + ': ' + message.data);
   //var decoded = decodeMessage(message);
@@ -296,7 +296,7 @@ listenerBreathControl.subscribe(function(message) {
             document.getElementById("br_ground_truth").innerText = String(brpm_ground_truth_estimave);
         }
         if (time_no_breath >= 20){
-            document.getElementById("br_ground_truth").innerText = "Apneia";
+            document.getElementById("br_ground_truth").innerText = "Apnea";
         }
         time_no_breath++;
     }, 1000);
@@ -325,7 +325,7 @@ let listenerBR = new ROSLIB.Topic({
   messageType : 'custom_interfaces/msg/BreathEstimate'
 });
 
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerBR.subscribe(function(message) {
   //console.log('Received message on ' + listenerBR.name + ': ' + message);
   //var decoded = decodeMessage(message);
@@ -337,51 +337,51 @@ listenerBR.subscribe(function(message) {
 
   if(is_person){
     document.getElementById('loading').style.display = 'none';
-    document.getElementById("container-resultados").style.display = 'inline';
+    document.getElementById("results-container").style.display = 'inline';
     //document.getElementById('results').style.display = 'inline';
     let brValue = document.getElementById('br_value');
 
     if (decoded.apnea_detected == 1){
-      brValue.classList.add('apneia-value');
+      brValue.classList.add('apnea-value');
       brValue.classList.remove('normal-value');
-      decoded.breath_rate = "Apneia";
+      decoded.breath_rate = "Apnea";
     }else{
-      brValue.classList.remove('apneia-value');
+      brValue.classList.remove('apnea-value');
       brValue.classList.add('normal-value');
     }
     document.getElementById("br_value").innerHTML = decoded.breath_rate;
   }
 
-  if (graficoHistogramaAtivo)
-      atualizaHistograma(decoded.breath_rate);
-  if (graficoSinalAtivo)
-      atualizaSinal(decoded.breath_rate);
-  if (graficoSinalAtivo2)
-      atualizaSinal2(decoded.breath_rate);
+  if (histogramChartActive)
+      updateHistogram(decoded.breath_rate);
+  if (signalChartActive)
+      updateSignal(decoded.breath_rate);
+  if (signalChartActive2)
+      updateSignal2(decoded.breath_rate);
 });
 
-//controle das abas de navegação
-function ativaGrafico(tpGrafico){
-  switch (tpGrafico) {
-    case "nav-histograma-tab":
-      graficoHistogramaAtivo = true;
-      graficoMapaAtivo = false;
-      graficoMapaMmWAtivo = false;
+// Navigation tab control
+function activateChart(chartType){
+  switch (chartType) {
+    case "nav-histogram-tab":
+      histogramChartActive = true;
+      heatmapChartActive = false;
+      mmwaveHeatmapChartActive = false;
       break;
-    case "nav-sinal-tab":
-      graficoSinalAtivo = true;
-      graficoMapaAtivo = false;
+    case "nav-signal-tab":
+      signalChartActive = true;
+      heatmapChartActive = false;
       break;
-    case "nav-sinal-tabb":
-      graficoSinalAtivo2 = true;
-      graficoMapaAtivo = false;
+    case "nav-signal-tab2":
+      signalChartActive2 = true;
+      heatmapChartActive = false;
       break;
-    case "nav-mapa-tab":
-      graficoMapaAtivo = true;
-      graficoMapaMmWAtivo = false;
+    case "nav-heatmap-tab":
+      heatmapChartActive = true;
+      mmwaveHeatmapChartActive = false;
       break;
-    case "nav-mapa-mmw-tab":
-      graficoMapaMmWAtivo = true;
+    case "nav-heatmap-mmw-tab":
+      mmwaveHeatmapChartActive = true;
       break;
   }
 
@@ -393,13 +393,13 @@ let persistence_request_publisher = new ROSLIB.Topic({
   messageType: 'custom_interfaces/msg/PersistenceRequest'
 });
 
-const form = document.getElementById('metadados_form');
-const form_btn = document.getElementById('btn_persistencia');
+const form = document.getElementById('metadata-form');
+const form_btn = document.getElementById('btn-persistence');
 let num_frames = null;
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  console.log("Botao apertado")
+  console.log("Button pressed")
   if (form.btn_status.value === '0'){
     // The subject ID becomes part of the capture file name
     const subject_id = form.subject_id.value.trim();
@@ -421,14 +421,14 @@ form.addEventListener('submit', (event) => {
     
     persistence_request_publisher.publish(request_message);
 
-    form_btn.innerText = 'Cancelar'
+    form_btn.innerText = 'Cancel'
     form_btn.value = '1'
 
-    document.getElementById('barra_progresso').setAttribute('max', form.num_frames.value);
+    document.getElementById('progress-bar').setAttribute('max', form.num_frames.value);
     document.getElementById('progress_div').style.display = 'block';
   }
   // else {
-  //   form_btn.innerText = 'Persistir'
+  //   form_btn.innerText = 'Start Persistence'
   //   form_btn.value = '0'
   // }
 
@@ -441,7 +441,7 @@ let persistence_response_listener = new ROSLIB.Topic({
 });
 
 persistence_response_listener.subscribe((message) => {
-  form_btn.innerText = 'Persistir'
+  form_btn.innerText = 'Start Persistence'
   form_btn.value = '0'
   document.getElementById('progress_div').style.display = 'none';
 });
@@ -453,8 +453,8 @@ let persistence_feedback_listener = new ROSLIB.Topic({
 });
 
 persistence_feedback_listener.subscribe((message) => {
-  document.getElementById('barra_progresso').setAttribute('value', message.captured_frames);
-  document.getElementById('texto_progresso').innerText = `Pacotes: ${message.captured_frames}/${num_frames}`;
+  document.getElementById('progress-bar').setAttribute('value', message.captured_frames);
+  document.getElementById('progress-text').innerText = `Packets: ${message.captured_frames}/${num_frames}`;
 });
 
 // ===================

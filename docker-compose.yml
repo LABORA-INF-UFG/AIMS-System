@@ -38,7 +38,7 @@ services:
       - KERAS_APNEA_MODEL=${KERAS_APNEA_MODEL:-/app/models/apenaDetection_AIMS_model1.h5}
       - AIMS=/app
     volumes:
-      - captures:/app/Capturas
+      - captures:/app/captures
       - ./models:/app/models:ro
     restart: unless-stopped
     command: ["ros2", "launch", "csi", "aims_launch.py"]

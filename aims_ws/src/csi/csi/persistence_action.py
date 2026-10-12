@@ -101,23 +101,23 @@ class PersistenceAction(Node):
             recv_frames = len(self.listener_node.frame_buffer)
 
         current_dir = os.getenv('AIMS')
-        if not os.path.exists(current_dir + '/Capturas'):
-            os.mkdir(current_dir + '/Capturas')
+        if not os.path.exists(current_dir + '/captures'):
+            os.mkdir(current_dir + '/captures')
 
-        nome_captura_csi = f'{goal_handle.request.nome_coleta}-{goal_handle.request.nome_paciente}-{goal_handle.request.modelo_nic_rx}-{goal_handle.request.modelo_nic_tx}-{goal_handle.request.posicao_paciente}-{goal_handle.request.distancia_antenas_centimetros}cm-{data}.txt'
-        with open(f"{os.getenv('AIMS')}/Capturas/{nome_captura_csi}", "w") as f:
+        nome_captura_csi = f'{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{data}.txt'
+        with open(f"{os.getenv('AIMS')}/captures/{nome_captura_csi}", "w") as f:
             for item in self.listener_node.frame_buffer:
                 f.write(str(CsiMsgToDict(item)) + "\n")
         
         if len(self.listener_node.heartbeat_buffer) > 0:
-            nome_captura_heartbeat = f'Heartbeats-{goal_handle.request.nome_coleta}-{goal_handle.request.nome_paciente}-{goal_handle.request.modelo_nic_rx}-{goal_handle.request.modelo_nic_tx}-{goal_handle.request.posicao_paciente}-{goal_handle.request.distancia_antenas_centimetros}cm-{data}.txt'
-            with open(f"{os.getenv('AIMS')}/Capturas/{nome_captura_heartbeat}", "w") as f:
+            nome_captura_heartbeat = f'Heartbeats-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{data}.txt'
+            with open(f"{os.getenv('AIMS')}/captures/{nome_captura_heartbeat}", "w") as f:
                 for item in self.listener_node.heartbeat_buffer:
                     f.write(str(item) + "\n")
 
         if len(self.listener_node.breath_buffer) > 0:
-            nome_captura_breath = f'Breaths-{goal_handle.request.nome_coleta}-{goal_handle.request.nome_paciente}-{goal_handle.request.modelo_nic_rx}-{goal_handle.request.modelo_nic_tx}-{goal_handle.request.posicao_paciente}-{goal_handle.request.distancia_antenas_centimetros}cm-{data}.txt'
-            with open(f"{os.getenv('AIMS')}/Capturas/{nome_captura_breath}", "w") as f:
+            nome_captura_breath = f'Breaths-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{data}.txt'
+            with open(f"{os.getenv('AIMS')}/captures/{nome_captura_breath}", "w") as f:
                 for item in self.listener_node.breath_buffer:
                     f.write(str(item) + "\n")
 
@@ -125,7 +125,7 @@ class PersistenceAction(Node):
 
         goal_handle.succeed()
         result = Persistence.Result()
-        result.response = f"Captura ({nome_captura_csi}) salva em '{os.getenv('AIMS')}/Capturas/'"
+        result.response = f"Captura ({nome_captura_csi}) salva em '{os.getenv('AIMS')}/captures/'"
         return result
     
 

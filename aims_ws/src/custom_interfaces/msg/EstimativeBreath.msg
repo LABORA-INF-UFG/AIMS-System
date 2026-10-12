@@ -1,3 +1,0 @@
-float32 breath_estimative
-float32 precision
-bool apneia_detected

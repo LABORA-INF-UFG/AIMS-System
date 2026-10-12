@@ -99,7 +99,7 @@ ENV ROS_DOMAIN_ID=5
 VOLUME ["/app/models"]
 
 # Volume for CSI captures
-VOLUME ["/app/Capturas"]
+VOLUME ["/app/captures"]
 
 WORKDIR /app/aims_ws
 

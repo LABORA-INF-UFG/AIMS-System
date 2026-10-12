@@ -10,7 +10,7 @@ web/install/
 web/node_modules/
 
 # CSI captures
-Capturas/
+captures/
 
 # Python
 __pycache__

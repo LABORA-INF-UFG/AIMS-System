@@ -1,0 +1,35 @@
+{
+  capture_name: 'Apnea01',
+  subject_id: 'S01',
+  rx_nic_model: 'Intel 5300',
+  tx_nic_model: 'Intel 5300',
+  subject_position: 'sitting_front_left_side',
+  antenna_distance_m: 1,
+  num_frames: 1000
+}
+
+
+# Command to simulate a service request
+
+# ros2 service call /persist_csi custom_interfaces/srv/Persistence "{
+#   capture_name: 'Apnea01',
+#   subject_id: 'S01',
+#   rx_nic_model: 'Intel 5300',
+#   tx_nic_model: 'Intel 5300',
+#   subject_position: 'sitting_front_left_side',
+#   antenna_distance_m: 1,
+#   num_frames: 100
+# }"
+
+
+# Command to simulate an action request (the action uses centimeters)
+
+# ros2 action send_goal --feedback persist_csi custom_interfaces/action/Persistence "{
+#   capture_name: 'Apnea01',
+#   subject_id: 'S01',
+#   rx_nic_model: 'Intel 5300',
+#   tx_nic_model: 'Intel 5300',
+#   subject_position: 'sitting_front_left_side',
+#   antenna_distance_cm: 100,
+#   num_frames: 1000
+# }"

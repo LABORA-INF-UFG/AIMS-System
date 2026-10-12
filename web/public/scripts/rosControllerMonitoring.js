@@ -149,7 +149,7 @@ listenerHeatmap.subscribe(function(message) {
 //Subscribing to a Topic for the camera image from Vision Team
 let listenerVisionCameraImage = new ROSLIB.Topic({
   ros: ros,
-  name: '/visao_image',
+  name: '/vision_image',
   messageType: 'sensor_msgs/msg/Image'
 });
 listenerVisionCameraImage.subscribe((message)=>{
@@ -212,7 +212,7 @@ listenerHRMmW.subscribe(function(message) {
 //Subscribing to a Topic for the cardiofi breathing estimation
 let listenerBRCardiofi = new ROSLIB.Topic({
   ros : ros,
-  name : '/estimativebreath_cardiofi',
+  name : '/breath_estimate_cardiofi',
   messageType : 'std_msgs/msg/Float32'
 });
 // Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
@@ -225,7 +225,7 @@ listenerBRCardiofi.subscribe(function(message) {
 //Subscribing to a Topic for the cardiofi heart estimation
 let listenerHRCardiofi = new ROSLIB.Topic({
   ros : ros,
-  name : '/estimativeheart_cardiofi',
+  name : '/heart_estimate_cardiofi',
   messageType : 'std_msgs/msg/Float32'
 });
 // Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
@@ -321,8 +321,8 @@ function hideLungBeat() {
 // and message type. Note that we can call publish or subscribe on the same topic object.
 let listenerBR = new ROSLIB.Topic({
   ros : ros,
-  name : '/estimativebreath',
-  messageType : 'custom_interfaces/msg/EstimativeBreath'
+  name : '/breath_estimate',
+  messageType : 'custom_interfaces/msg/BreathEstimate'
 });
 
 // Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
@@ -330,7 +330,7 @@ listenerBR.subscribe(function(message) {
   //console.log('Received message on ' + listenerBR.name + ': ' + message);
   //var decoded = decodeMessage(message);
   var decoded = message;
-  //console.log(message.apneia_detected);
+  //console.log(message.apnea_detected);
   if (! receivedFirstMessage){
       receivedFirstMessage = true
   }
@@ -341,23 +341,23 @@ listenerBR.subscribe(function(message) {
     //document.getElementById('results').style.display = 'inline';
     let brValue = document.getElementById('br_value');
 
-    if (decoded.apneia_detected == 1){
+    if (decoded.apnea_detected == 1){
       brValue.classList.add('apneia-value');
       brValue.classList.remove('normal-value');
-      decoded.breath_estimative = "Apneia";
+      decoded.breath_rate = "Apneia";
     }else{
       brValue.classList.remove('apneia-value');
       brValue.classList.add('normal-value');
     }
-    document.getElementById("br_value").innerHTML = decoded.breath_estimative;
+    document.getElementById("br_value").innerHTML = decoded.breath_rate;
   }
 
   if (graficoHistogramaAtivo)
-      atualizaHistograma(decoded.breath_estimative);
+      atualizaHistograma(decoded.breath_rate);
   if (graficoSinalAtivo)
-      atualizaSinal(decoded.breath_estimative);
+      atualizaSinal(decoded.breath_rate);
   if (graficoSinalAtivo2)
-      atualizaSinal2(decoded.breath_estimative);
+      atualizaSinal2(decoded.breath_rate);
 });
 
 //controle das abas de navegação
@@ -410,12 +410,12 @@ form.addEventListener('submit', (event) => {
     num_frames = Number(form.num_frames.value);
 
     let request_message = new ROSLIB.Message({
-      nome_coleta: form.nome_coleta.value,
-      nome_paciente: subject_id,
-      modelo_nic_rx: 'Intel 5300',
-      modelo_nic_tx: 'Intel 5300',
-      posicao_paciente: form.posicao_paciente.value,
-      distancia_antenas_centimetros: Number(form.distancia_antenas_centimetros.value),
+      capture_name: form.capture_name.value,
+      subject_id: subject_id,
+      rx_nic_model: 'Intel 5300',
+      tx_nic_model: 'Intel 5300',
+      subject_position: form.subject_position.value,
+      antenna_distance_cm: Number(form.antenna_distance_cm.value),
       num_frames: num_frames
     });
     

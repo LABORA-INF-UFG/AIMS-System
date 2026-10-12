@@ -2,24 +2,24 @@ import rclpy
 from rclpy.node import Node
 import random
 
-from custom_interfaces.msg import EstimativeBreath
+from custom_interfaces.msg import BreathEstimate
 
-class MockedBreathingRateAndApneiaPublisher(Node):
+class MockedBreathingRateAndApneaPublisher(Node):
 
     def __init__(self):
-        super().__init__('mocked_breathing_and_apneia_publisher')
-        self.publisher_ = self.create_publisher(EstimativeBreath, 'estimativebreath', 10)
+        super().__init__('mocked_breathing_and_apnea_publisher')
+        self.publisher_ = self.create_publisher(BreathEstimate, 'breath_estimate', 10)
         self.timer_period = 2  # seconds
         self.timer = self.create_timer(self.timer_period, self.timer_callback)
 
         self.i = 0
         self.breathing_rate: float = 8.0
         self.precision : float = 0.8
-        self.apenia_detected = False
+        self.apnea_detected = False
         self.br_zero_counter = 0
 
     def timer_callback(self):
-        msg = EstimativeBreath()
+        msg = BreathEstimate()
 
         # Mock the precision
         
@@ -38,28 +38,28 @@ class MockedBreathingRateAndApneiaPublisher(Node):
 
         if self.breathing_rate == 0:
 
-                self.apenia_detected = True
+                self.apnea_detected = True
 
                 self.br_zero_counter += 1
 
                 if self.br_zero_counter > (5/self.timer_period):
                     self.br_zero_counter = 0
                     self.breathing_rate = 11
-                    self.apenia_detected = False
+                    self.apnea_detected = False
  
         else:
-            self.apenia_detected = False
+            self.apnea_detected = False
 
         # ==========================
 
         # Populate the msg file
-        msg.breath_estimative = float(self.breathing_rate)
-        msg.apneia_detected = self.apenia_detected
+        msg.breath_rate = float(self.breathing_rate)
+        msg.apnea_detected = self.apnea_detected
         msg.precision = self.precision
 
         # ==========================
         self.publisher_.publish(msg)
-        self.get_logger().info('Publishing breathing estimative msg: "%s"' % self.i)
+        self.get_logger().info('Publishing breathing estimate msg: "%s"' % self.i)
         self.i += 1
 
 
@@ -67,7 +67,7 @@ def main(args=None):
 
     rclpy.init(args=args)
 
-    minimal_publisher = MockedBreathingRateAndApneiaPublisher()
+    minimal_publisher = MockedBreathingRateAndApneaPublisher()
 
     rclpy.spin(minimal_publisher)
 

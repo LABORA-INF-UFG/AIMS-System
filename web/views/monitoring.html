@@ -235,7 +235,7 @@
           <!-- Nome da coleta -->
           <div>
             <label class="block text-sm font-semibold text-gray-700">Nome da coleta</label>
-            <input type="text" name="nome_coleta" placeholder="Nome da coleta" required
+            <input type="text" name="capture_name" placeholder="Nome da coleta" required
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
           </div>
 
@@ -257,34 +257,33 @@
           <!-- Distância entre antenas -->
           <div>
             <label class="block text-sm font-semibold text-gray-700">Distância entre antenas (cm)</label>
-            <input type="number" name="distancia_antenas_centimetros" min="0" value="100" required
+            <input type="number" name="antenna_distance_cm" min="0" value="100" required
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
           </div>
 
           <!-- Posição do paciente -->
           <div>
             <label class="block text-sm font-semibold text-gray-700">Posição do paciente</label>
-            <select name="posicao_paciente"
+            <select name="subject_position"
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
-              <option value="Sentado_frente">Sentado Frente</option>
-              <option value="Sentado_costas">Sentado Costas</option>
-              <option value="Sentado_frente_ladoDir">Sentado Frente Lado Direito</option>
-              <option value="Sentado_frente_ladoEsq">Sentado Frente Lado Esquerdo</option>
-              <option value="Sentado_lateral_ladoDir">Sentado Lateral Lado Direito</option>
-              <option value="Sentado_lateral_ladoEsq">Sentado Lateral Lado Esquerdo</option>
-              <option value="Deitado_plano_pés_pra_janela">Deitado plano pés para janela</option>
-              <option value="Deitado_encosto_45_graus_pés_pra_janela">Deitado encosto 45° pés para janela</option>
-              <option value="Deitado_encosto_45_graus_costas">Deitado encosto 45° costas</option>
-              <option value="Deitado_encosto_90_graus_costas">Deitado encosto 90° costas</option>
-              <option value="Deitado_encosto_45_graus_frente">Deitado encosto 45° frente</option>
-              <option value="Deitado_encosto_90_graus_frente">Deitado encosto 90° frente</option>
-              <option value="Deitado_encosto_90_graus_pes_para_janela">Deitado encosto 90° pés para a janela</option>
-              <option value="Deitado_plano_pes_para_janela">Deitado plano pés para a janela</option>
-              <option value="Deitado_plano_costas_para_janela">Deitado plano costas para a janela</option>
-              <option value="Deitado_encosto_45_graus_costas_para_janela">Deitado encosto 45° costas para a janela</option>
-              <option value="Deitado_encosto_90_graus_costas_para_janela">Deitado encosto 90° costas para a janela</option>
-              <option value="Deitado_plano_costas">Deitado plano costas</option>
-              <option value="Deitado_plano_frente">Deitado plano frente</option>
+              <option value="sitting_front">Sitting, front</option>
+              <option value="sitting_back">Sitting, back</option>
+              <option value="sitting_front_right_side">Sitting, front, right side</option>
+              <option value="sitting_front_left_side">Sitting, front, left side</option>
+              <option value="sitting_lateral_right_side">Sitting, lateral, right side</option>
+              <option value="sitting_lateral_left_side">Sitting, lateral, left side</option>
+              <option value="lying_flat_feet_to_window">Lying flat, feet to window</option>
+              <option value="lying_45deg_feet_to_window">Lying, 45° backrest, feet to window</option>
+              <option value="lying_45deg_back">Lying, 45° backrest, back</option>
+              <option value="lying_90deg_back">Lying, 90° backrest, back</option>
+              <option value="lying_45deg_front">Lying, 45° backrest, front</option>
+              <option value="lying_90deg_front">Lying, 90° backrest, front</option>
+              <option value="lying_90deg_feet_to_window">Lying, 90° backrest, feet to window</option>
+              <option value="lying_flat_back_to_window">Lying flat, back to window</option>
+              <option value="lying_45deg_back_to_window">Lying, 45° backrest, back to window</option>
+              <option value="lying_90deg_back_to_window">Lying, 90° backrest, back to window</option>
+              <option value="lying_flat_back">Lying flat, back</option>
+              <option value="lying_flat_front">Lying flat, front</option>
             </select>
           </div>
         </form>

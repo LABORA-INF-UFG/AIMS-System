@@ -29,13 +29,23 @@ RUN cd /tmp/aims_ws && \
     rosdep update && \
     rosdep install -i --from-path src --rosdistro ${ROS_DISTRO} -y
 
-# Install PicoscenesToolbox from GitHub (Cython-based, requires build tools)
-RUN pip3 install --no-cache-dir \
-    git+https://github.com/wifisensing/PicoScenes-Python-Toolbox.git@master
-
 # Install Python dependencies (without oct2py — experimental only)
 COPY aims_ws/src/requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
+# Build the patched PicoScenes parser (resources/picoscenes.pyx parses one UDP
+# frame instead of a file). Pinned to the toolbox commit the patch was written
+# against (Nov 2022); newer upstream commits change the parsing core API.
+# Built after requirements.txt so it compiles against the runtime numpy.
+ARG PICOSCENES_TOOLBOX_COMMIT=6e4c6cbdc037a80d0e707b53440c9ef139b750cc
+COPY resources/picoscenes.pyx /tmp/picoscenes.pyx
+RUN pip3 install --no-cache-dir "cython<3" && \
+    git clone https://github.com/Herrtian/PicoscenesToolbox.git /opt/PicoscenesToolbox && \
+    cd /opt/PicoscenesToolbox && \
+    git checkout ${PICOSCENES_TOOLBOX_COMMIT} && \
+    git submodule update --init --recursive && \
+    cp /tmp/picoscenes.pyx picoscenes.pyx && \
+    python3 setup.py build_ext --inplace
 
 # Copy source code and build the colcon workspace
 COPY aims_ws/ /app/aims_ws/
@@ -59,19 +69,6 @@ RUN apt-get update && \
         python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
-# Install PicoscenesToolbox runtime (pre-built in builder, but pip packages
-# don't transfer between stages cleanly for Cython, so reinstall)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        python3-dev \
-        build-essential \
-        git && \
-    pip3 install --no-cache-dir \
-        git+https://github.com/wifisensing/PicoScenes-Python-Toolbox.git@master && \
-    apt-get purge -y build-essential git && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
-
 # Install Python runtime dependencies
 COPY aims_ws/src/requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt && \
@@ -85,9 +82,17 @@ COPY aims_ws/src/csi/ /app/aims_ws/src/csi/
 COPY aims_ws/src/custom_interfaces/ /app/aims_ws/src/custom_interfaces/
 COPY aims_ws/src/fastdds_profile.xml /app/aims_ws/src/fastdds_profile.xml
 
-# Copy entrypoint
+# Patched PicoScenes parser, imported as PicoscenesToolbox.picoscenes ($AIMS=/app)
+COPY --from=builder /opt/PicoscenesToolbox/picoscenes*.so /opt/PicoscenesToolbox/LICENSE.md /app/PicoscenesToolbox/
+
+# Copy entrypoint (strip CR in case of a Windows checkout with CRLF endings)
 COPY docker/ros2/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+# `docker compose exec <service> ros2 ...` skips the entrypoint; this wrapper
+# sources the overlays so the ros2 CLI works there too.
+RUN printf '#!/bin/bash\nexec /entrypoint.sh /opt/ros/%s/bin/ros2 "$@"\n' "$ROS_DISTRO" > /usr/local/bin/ros2 && \
+    chmod +x /usr/local/bin/ros2
 
 # Environment variables (can be overridden by docker-compose .env)
 ENV AIMS=/app

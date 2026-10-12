@@ -9,7 +9,7 @@
 
   <!--
     Python dependencies are managed in aims_ws/src/requirements.txt.
-    PicoscenesToolbox is installed separately from GitHub.
+    The patched PicoScenes parser is built in docker/ros2/Dockerfile.
     Octave nodes are experimental and not included in the default build.
   -->
   

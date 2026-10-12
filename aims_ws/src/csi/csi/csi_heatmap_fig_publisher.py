@@ -10,7 +10,6 @@ from csi.libs.BreathEstimation import BreathEstimation
 from csi.libs.new_plotter import Plotter
 import cv2
 from sensor_msgs.msg import Image # Image is the message type
-from cv_bridge import CvBridge # Package to convert between ROS and OpenCV Images
 import numpy as np
 import base64
 
@@ -38,8 +37,6 @@ class CsiHeatmapFigPublisher(Node):
         self.heatmap = None
         
         self.publisher_ = self.create_publisher(Image, 'heatmap', 10)
-        # Used to convert between ROS and OpenCV images
-        self.br = CvBridge()
 
 
     def listener_callback(self, msg):

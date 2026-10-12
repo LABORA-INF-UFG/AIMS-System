@@ -1,11 +1,11 @@
 # AIMS Python Dependencies
-# Note: PicoscenesToolbox is installed separately from GitHub
+# Note: the PicoScenes parser is built in docker/ros2/Dockerfile
 # Note: oct2py excluded (experimental Octave nodes only)
 tensorflow[and-cuda]
 scikit-learn
 numpy
 numba
-opencv-python
+opencv-python-headless
 scipy
 pyserial
 matplotlib

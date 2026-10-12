@@ -19,7 +19,7 @@ def filename_to_dict(filename: str, results: Dict[str, Dict]) -> str:
     key = parts[0]
     results[key] = {
         'name': parts[0],
-        'patient': parts[3],
+        'subject': parts[3],
         'position': parts[6],
         'capture_device': parts[4],
         'heart_control': parts[1],

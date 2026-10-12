@@ -31,7 +31,7 @@ echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc
 # and adds it to .bashrc
 echo "AIMSWS_LOCALSETUP=$AIMS/aims_ws/install/local_setup.bash" >> ~/.bashrc
 
-# Add env for apneia ai keras model
+# Add env for apnea AI Keras model
 echo "export KERAS_APNEA_MODEL=$AIMS/aims_ws/src/csi/csi/resource/apenaDetection_AIMS_model1.h5" >> ~/.bashrc
 
 # Add defaults for rmw

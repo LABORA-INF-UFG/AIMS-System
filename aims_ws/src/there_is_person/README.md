@@ -1,6 +1,6 @@
 ## there_is_person
 
-No de deteccao de pessoa baseado em TensorFlow Lite.
+Person detection node based on TensorFlow Lite.
 
 ## Build
 
@@ -17,8 +17,8 @@ source install/setup.bash
 ros2 run there_is_person is_person
 ```
 
-## Requisitos
+## Requirements
 
-- Variavel `AIMS` apontando para a raiz do repositorio.
-- Arquivo do modelo em `resources/lite-model_movenet_singlepose_thunder_tflite_float16_4.tflite`.
-- Webcam conectada para captura de video.
+- `AIMS` variable pointing to the repository root.
+- Model file at `resources/lite-model_movenet_singlepose_thunder_tflite_float16_4.tflite`.
+- Webcam connected for video capture.

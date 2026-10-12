@@ -15,20 +15,20 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
     %   breathRate     - Calculated breath rate.
     %   heartRate      - Calculated heart rate.
 
-	% Carregando valores aferidos anteriormente em um vetor de 1 coluna. Ao longo do código, o valor no slot "counter" será atualizado com a medição atual.
+	% Loading previously measured values into a 1-column vector. Throughout the code, the value in the "counter" slot will be updated with the current measurement.
 	breathBPMResults(:,1) = prevBreathRate;
 	heartBPMResults(:,1) = prevHeartRate;
 
-	% Intervalo de frequência onde buscará sinal (Hz)
-	% Algoritmo de sintonizar busca em torno da mediana encontrada (CardioFi)
+	% Frequency range where the signal is searched (Hz)
+	% Algorithm that tunes the search around the median found (CardioFi)
 	FminBreath = 0.1;
 	FmaxBreath = 1.5;
 
-	% Intervalo de frequência onde buscará sinal (Hz)
+	% Frequency range where the signal is searched (Hz)
 	FminHeart = 50/60;
 	FmaxHeart = 2;
 
-	% Taxa de amostragem padrão dos sinais coletados
+	% Default sampling rate of the collected signals
     Fs = 100;
 
 	currentAnt = counter;
@@ -36,20 +36,20 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
     decimatedSize = ceil(size(window, 1)/10)
 	CSIm = zeros(decimatedSize, size(window, 2));
 
-	% Tamanho do sinal de acordo com window
+	% Signal size according to window
     [dataLength, subCarriers, antennaMax] = size(CSIm);
 
-    % Decimando sinais a 10 Hz
+    % Decimating signals to 10 Hz
 	for subCarrier=1:size(CSIm,2)
 		CSIm(:,subCarrier) = decimate(window(:,subCarrier),10);
 	end
 
-    % Sobrescrevendo taxa de amostragem do sinal decimado em 10 Hz.
+    % Overwriting the sampling rate of the signal decimated to 10 Hz.
     Fs = 10;
 
     % <--------------------------------
-    % Removendo frequências altas do sinal:
-    % Filtro passa-baixas butterworth de ordem 2, frequência de corte de 4 Hz
+    % Removing high frequencies from the signal:
+    % Butterworth low-pass filter of order 2, cutoff frequency of 4 Hz
 	FClow = 4;
 	order = 2;
 	[b,a]=butter(order,FClow/(Fs/2),'low');
@@ -61,7 +61,7 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
     % CardioFi Preprocessing ---->
 
 
-    % <----- Seleção de subportadoras para respiração :
+    % <----- Subcarrier selection for breathing :
 
     % Split signal in moving window of 20 seconds, step by 1 second
     % For each subcarrier, each time window calculate peak frequency R
@@ -107,33 +107,33 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
     spectralStability = 1./spectralVariability;
     %normSS = normalize(spectralStability,'range',[0,1]);
 
-    % Para um score entre 1 e 100, usamos uma normalização entre 0.01 e 1
+    % For a score between 1 and 100, we use a normalization between 0.01 and 1
     spectralStabilityNormalized = 1./normalize(var(peakFreq(:,:)),'range',[0.01,1]);
-    % Seleciona somente a melhor portadora
+    % Selects only the best carrier
     %[~, selectedCarriers] = max(spectralStability);
 
-    % Selecionando as subportadoras com score acima de 20
+    % Selecting the subcarriers with a score above 20
     selectedCarriers = find(spectralStabilityNormalized>20);
 
-    % Selecionando somente subportadoras com variabilidade < 0.001
+    % Selecting only subcarriers with variability < 0.001
     %selectedCarriers = find(spectralStabilityNormalized>80);
 
     if isempty(selectedCarriers)
         [~, selectedCarriers] = max(spectralStability);
     end
-    % Seleção de subportadoras para respiração ----->
+    % Subcarrier selection for breathing ----->
 
     clear fftFreq fftAmp peakFreq spectralVariability spectralStability spectralStabilityNormalized
-    % Definindo número de amostras analisadas
+    % Defining the number of analyzed samples
     analyzedLength = length(CSImFilt);
 
-    %Número de amostras para o alarme de apneia
-    apneiaMaxSamples = 1;
+    %Number of samples for the apnea alarm
+    apneaMaxSamples = 1;
 
-    %Limiar do desvio padrão para o alarme de apneia
-    apneiaTH = 0.25;
+    %Standard deviation threshold for the apnea alarm
+    apneaTH = 0.25;
 
-    % Buscando pico de respiração em cada subportadora
+    % Searching for the breathing peak in each subcarrier
     carrierIndex = 0;
     clear breathBPMResultsSub fftFreq fftAmp
     breathBPMResultsSub = zeros(1, size(CSImFilt, 2));
@@ -148,20 +148,20 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
 
         if isempty(freqBreath)
             if median(breathBPMResultsSub) == 0
-                % Caso não hajam picos nesse intervalo, use a mediana dos
-                % resultados já encontrados nas outras subportadoras
+                % If there are no peaks in this range, use the median of the
+                % results already found on the other subcarriers
                 [a,b] = max(fftAmp(and(fftFreq>FminBreath,fftFreq<FmaxBreath),carrierIndex));
                 fftFreqTemp = fftFreq(and(fftFreq>FminBreath,fftFreq<FmaxBreath));
                 breathBPMResultsSub(carrierIndex) = fftFreqTemp(b);
                 clear a b fftFreqTemp
             else
-                % Caso não hajam resultados ainda, use a frequência do máximo
-                % da FFT nesse intervalo
+                % If there are no results yet, use the frequency of the maximum
+                % of the FFT in this range
                 breathBPMResultsSub(carrierIndex) = median(breathBPMResultsSub);
                 clear a b fftFreqTemp
             end
         else
-            % Caso haja picos nesse intervalo, use a frequência do pico da FFT.
+            % If there are peaks in this range, use the frequency of the FFT peak.
             breathBPMResultsSub(carrierIndex) = freqIndex(freqBreath)*60;
         end
     end
@@ -177,7 +177,7 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
     [b,a]=butter(order,[FminHeart/(Fs/2) FmaxHeart/(Fs/2)],'bandpass');
     CSIm = filtfilt(b, a, CSImCopy);
 
-    % <----- Seleção de subportadoras:
+    % <----- Subcarrier selection:
 
     % Split signal in moving window of 20 seconds, step by 1 second
     % For each subcarrier, each time window calculate peak frequency R
@@ -223,21 +223,21 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
     spectralStability = 1./spectralVariability;
     %normSS = normalize(spectralStability,'range',[0,1]);
 
-    % Para um score entre 1 e 100, usamos uma normalização entre 0.01 e 1
+    % For a score between 1 and 100, we use a normalization between 0.01 and 1
     spectralStabilityNormalized = 1./normalize(var(peakFreq(:,:)),'range',[0.01,1]);
-    % Seleciona somente a melhor portadora
+    % Selects only the best carrier
     %[~, selectedCarriers] = max(spectralStability);
 
-    % Selecionando as subportadoras com score acima de 20
+    % Selecting the subcarriers with a score above 20
     selectedCarriers = find(spectralStabilityNormalized>20);
 
-    % Selecionando somente subportadoras com variabilidade < 0.001
+    % Selecting only subcarriers with variability < 0.001
     %selectedCarriers = find(spectralStabilityNormalized>80);
 
     if isempty(selectedCarriers)
         [~, selectedCarriers] = max(spectralStability);
     end
-    % Seleção de subportadoras ----->
+    % Subcarrier selection ----->
 
     clear fftFreq fftAmp
     carrierIndex = 0;
@@ -264,8 +264,8 @@ function [breathRate, heartRate] = slidingEstimateVital(signalLength, window, co
         heartBPMResults(currentAnt,1) = freqIndex(maxFreqIndex)*60;
     end
 	
-    breathRate = breathBPMResults(currentAnt,1); % Respiração estimada para essa antena.
-    heartRate = heartBPMResults(currentAnt,1); % Batimentos cardíacos estimados para essa antena.
+    breathRate = breathBPMResults(currentAnt,1); % Estimated breathing for this antenna.
+    heartRate = heartBPMResults(currentAnt,1); % Estimated heartbeats for this antenna.
 
 end
 

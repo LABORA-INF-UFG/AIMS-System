@@ -7,75 +7,75 @@ from scipy.signal import medfilt
 from sklearn.preprocessing import MinMaxScaler
 from scipy.stats import variation
 
-def processamento(estimador):
+def process(estimator):
     
     start = time.time_ns()
 
-    # calculando a diferença de fase e desembrulha o sinal
-    CSIiDiff = estimador.diferenca_de_fase(estimador.get_csii())
-    # também decima o sinal a 10 Hz
-    CSIiDiff = estimador.decimador(CSIiDiff)
-    #falta o passa baixa
-    CSIi_filtered= estimador.filtro_passa_baixa(CSIiDiff)  # fase
-    CSIr_filtered= estimador.filtro_passa_baixa(estimador.get_csir())  # amplitude
+    # compute the phase difference and unwrap the signal
+    CSIiDiff = estimator.phase_difference(estimator.get_csii())
+    # also decimate the signal to 10 Hz
+    CSIiDiff = estimator.decimator(CSIiDiff)
+    #low-pass is missing
+    CSIi_filtered= estimator.low_pass_filter(CSIiDiff)  # phase
+    CSIr_filtered= estimator.low_pass_filter(estimator.get_csir())  # amplitude
 
     del CSIiDiff
 
     breathBPMResults = []
     heartBPMResults = []
-    #TODO: colocar dentro de laço, para avaliar todos os 6 sinais (3 para fase e 3 para amplitude)
+    #TODO: put inside a loop, to evaluate all 6 signals (3 for phase and 3 for amplitude)
     for i in range(6):
         if i<3:
             CSIm = CSIi_filtered[i]
         else:
             CSIm = CSIr_filtered[i-3]
 
-        #TODO: avaliar necessidade de aplicar convolução
+        #TODO: evaluate whether convolution needs to be applied
 
         # Hampel Filter 0.5s window, 0.4* std threshold
-        #CSIm = estimador.hampel_jit(CSIm,round(0.5*estimador.get_fs()),0.4)
+        #CSIm = estimator.hampel_jit(CSIm,round(0.5*estimator.get_fs()),0.4)
 
-        CSI_var_threshold = estimador.varianca_media(CSIm)
+        CSI_var_threshold = estimator.mean_variance(CSIm)
 
-        CSI_window = estimador.analisa_janela(CSIm, CSI_var_threshold)
+        CSI_window = estimator.analyze_window(CSIm, CSI_var_threshold)
 
-        CSI_tendency = estimador.calcular_tendencia(CSIm, CSI_window)
+        CSI_tendency = estimator.compute_trend(CSIm, CSI_window)
 
-        #CSI_filt = estimador.hampel_jit(CSIm-CSI_tendency,round(0.5*estimador.fs),0.1)
+        #CSI_filt = estimator.hampel_jit(CSIm-CSI_tendency,round(0.5*estimator.fs),0.1)
         CSI_filt = CSIm-CSI_tendency
 
-        # Definindo o número de amostras analisadas
+        # Defining the number of analyzed samples
         #analyzedLength = len(CSI_filt)
 
-        # Buscando pico de respiração em cada subportadora
-        # buscando os picos da fft
-        #TODO: rever a busca no algoritmo do gustavo
-        freq_resp_hz = estimador.busca_picos_fft_old(CSI_filt) * (estimador.segundos_buffer * 2)
+        # Searching for the breathing peak in each subcarrier
+        # find the FFT peaks
+        #TODO: review the search in Gustavo's algorithm
+        freq_resp_hz = estimator.find_fft_peaks_old(CSI_filt) * (estimator.buffer_seconds * 2)
 
-        # salvando a taxa de respiração encontrada
+        # save the breathing rate found
         breathBPMResults.append(freq_resp_hz)
 
         # ################################################################################
         # Heart rate estimation
-        estimador.set_fmin_heart(max(2 * freq_resp_hz / 60, 50 / 60))
-        estimador.set_fmax_heart(max(2, estimador.get_fmin_heart() + 1))
+        estimator.set_fmin_heart(max(2 * freq_resp_hz / 60, 50 / 60))
+        estimator.set_fmax_heart(max(2, estimator.get_fmin_heart() + 1))
 
         # Bandpass filtering between FminHeart and FmaxHeart
-        CSIm = estimador.filtro_passa_banda(CSIm, estimador.get_fmin_heart(), estimador.get_fmax_heart())
-        # Seleção de subportadoras
-        #selected_carriers = estimador.seleciona_subportadoras(CSIm)
-        selected_carriers = estimador.seleciona_subportadoras_b(CSIm)
+        CSIm = estimator.band_pass_filter(CSIm, estimator.get_fmin_heart(), estimator.get_fmax_heart())
+        # Subcarrier selection
+        #selected_carriers = estimator.select_subcarriers(CSIm)
+        selected_carriers = estimator.select_subcarriers_b(CSIm)
 
         csi = []
         for sc in selected_carriers:
             csi.append(CSI_filt[:, sc])
 
-        freq_batimentos_hz = estimador.busca_picos_fft_heart_b(np.array(csi)) * (estimador.segundos_buffer * 2)
+        heartbeat_freq_hz = estimator.find_fft_peaks_heart_b(np.array(csi)) * (estimator.buffer_seconds * 2)
 
-        # processa batimentos cardíacos
-        #freq_batimentos_hz = estimador.processa_batimentos(CSI_filt, selected_carriers)
+        # process heartbeats
+        #heartbeat_freq_hz = estimator.process_heartbeats(CSI_filt, selected_carriers)
 
-        heartBPMResults.append(freq_batimentos_hz)
+        heartBPMResults.append(heartbeat_freq_hz)
         break
     return np.median(breathBPMResults), np.median(heartBPMResults)
 
@@ -94,31 +94,31 @@ def _for_hampel_jit(array_copy, windowsize, n):
 class BreathEstimationCardioFI:
     def __init__(self):
 
-        # Frequência de amostragem
+        # Sampling frequency
         self.fs = 100
-        self.segundos_buffer = 30
+        self.buffer_seconds = 30
 
-        # Buffer de armazenamento - fase
-        self._buffer_CSIi = np.zeros((self.segundos_buffer * self.fs, 171))
-        # Buffer de armazenamento - amplitude
-        self._buffer_CSIr = np.zeros((self.segundos_buffer * self.fs, 171))
+        # Storage buffer - phase
+        self._buffer_CSIi = np.zeros((self.buffer_seconds * self.fs, 171))
+        # Storage buffer - amplitude
+        self._buffer_CSIr = np.zeros((self.buffer_seconds * self.fs, 171))
         self.pkt_count = 0
-        self.buffer_preenchido = False
+        self.buffer_filled = False
 
-        # ---- Definição de parâmetros ----
-        # Intervalo de frequência onde buscará sinal (Hz)
+        # ---- Parameter definitions ----
+        # Frequency range where the signal is searched (Hz)
         self.FminBreath = 0.1
         self.FmaxBreath = 1.5
 
-        # Intervalo de frequência onde buscará sinal (Hz)
+        # Frequency range where the signal is searched (Hz)
         self.fmin_heart = 50/60
         self.fmax_heart = 2
-        #TODO: dados antigos
-        # Número de sinais do PCA
+        #TODO: old data
+        # Number of PCA signals
         self.signals = 20
-        # Séries da PCA anteriores a esta serão ignoradas:
-        self.firstPCA = 1  # python começa a contar do 0
-        self.potenciasPCA = []
+        # PCA series before this one are ignored:
+        self.firstPCA = 1  # python counts from 0
+        self.pca_powers = []
 
     def set_fmin_heart(self, value):
         self.fmin_heart = value
@@ -135,36 +135,36 @@ class BreathEstimationCardioFI:
 
     def get_csii(self):
         '''
-        Parte imaginária do CSI = fase do sinal
-        :return: vector nas dimensões tamanho janela x nro de subportadoras
+        Imaginary part of the CSI = signal phase
+        :return: vector with dimensions window size x number of subcarriers
         '''
         return self._buffer_CSIi
 
     def get_csir(self):
         '''
-        Parte real do CSI = amplitude do sinal
-        :return: vector nas dimensões tamanho janela x nro de subportadoras
+        Real part of the CSI = signal amplitude
+        :return: vector with dimensions window size x number of subcarriers
         '''
         p1, p2, p3 = np.array_split(self._buffer_CSIr, 3, axis=1)
         CSIr = [p1, p2, p3]
         return CSIr
 
-    def recebe_pacote_csi(self, msg):
-        # Recebe um pacote de dados CSI e armazena no buffer
+    def receive_csi_packet(self, msg):
+        # Receive a CSI data packet and store it in the buffer
         CSIr = msg.csi.amplitude
         CSIi = msg.csi.phase
 
         if self.pkt_count == self._buffer_CSIi.shape[0]:
-            #fase
-            self._buffer_CSIi = np.roll(self._buffer_CSIi, -1, axis=0)  # desloca os elementos do buffer, depende da ordem linha coluna
+            #phase
+            self._buffer_CSIi = np.roll(self._buffer_CSIi, -1, axis=0)  # shift the buffer elements, depends on row/column order
             self._buffer_CSIi[-1, :] = CSIi
             #amplitude
-            self._buffer_CSIr = np.roll(self._buffer_CSIr, -1, axis=0)  # desloca os elementos do buffer, depende da ordem linha coluna
+            self._buffer_CSIr = np.roll(self._buffer_CSIr, -1, axis=0)  # shift the buffer elements, depends on row/column order
             self._buffer_CSIr[-1, :] = CSIr
-            if not self.buffer_preenchido:
-                self.buffer_preenchido = True
+            if not self.buffer_filled:
+                self.buffer_filled = True
         else:
-            #fase
+            #phase
             self._buffer_CSIi[self.pkt_count, :] = CSIi
             #amplitude
             self._buffer_CSIr[self.pkt_count, :] = CSIr
@@ -180,8 +180,8 @@ class BreathEstimationCardioFI:
             CSIm[:, i][residuals > threshold] = np.nan
         return CSIm
 
-    def decimador(self, csi):
-        # decimando os sinais a 10 Hz
+    def decimator(self, csi):
+        # decimating the signals to 10 Hz
         # Calculate the decimation factor
         fs_new = 10
         decimation_factor = self.fs // fs_new
@@ -189,18 +189,18 @@ class BreathEstimationCardioFI:
         p1p2 = scipy.signal.decimate(csi[0], decimation_factor, axis=0)
         p2p3 = scipy.signal.decimate(csi[1], decimation_factor, axis=0)
         p3p1 = scipy.signal.decimate(csi[2], decimation_factor, axis=0)
-        # definindo o novo fs
+        # defining the new fs
         self.fs = 10
         CSIiDiff = [p1p2, p2p3, p3p1]
         return CSIiDiff
 
-    def diferenca_de_fase(self, csi):
+    def phase_difference(self, csi):
         """
-        Essa função tem como objetivo calcular a diferença de fase entre as subportadoras.
-        Executa o cálculo de subtração entre subportadoras homólogas em antenas diferentes.
-        Também executa o unwrap (desembrulhar) das fases e a centralização em zero dos valores (subtração da média).
-        :param csi: numpy array de formato ou shape: (pacotes, subportadoras)
-        :return: numpy array de shape: (pacotes, num_tones)
+        Compute the phase difference between subcarriers.
+        Subtracts homologous subcarriers on different antennas.
+        Also unwraps the phases and centers the values at zero (mean subtraction).
+        :param csi: numpy array of shape: (packets, subcarriers)
+        :return: numpy array of shape: (packets, num_tones)
         """
         p1, p2, p3 = np.array_split(csi, 3, axis=1)
 
@@ -211,7 +211,7 @@ class BreathEstimationCardioFI:
         p3p1 = p3 - p1
         p3p1 = np.unwrap(p3p1, axis=0)
 
-        # definindo o novo fs
+        # defining the new fs
         #self.fs = 10
         # stacking the arrays
         #using Cheby 1 filter
@@ -225,7 +225,7 @@ class BreathEstimationCardioFI:
         CSIiDiff = [p1p2, p2p3, p3p1]
         return CSIiDiff
 
-    def passa_baixas(self, csi):
+    def low_pass(self, csi):
         fc = 4  # cutoff frequency
         order = 4  # filter order
         filter = scipy.signal.butter(order, fc, 'low', fs=self.fs, output='sos')
@@ -235,12 +235,12 @@ class BreathEstimationCardioFI:
         CSI_filtered = [p1p2, p2p3, p3p1]
         return CSI_filtered
 
-    def filtro_passa_baixa(self, csi):
+    def low_pass_filter(self, csi):
         """
-        Filtro que remove frequências altas no sinal
-        Filtro butterworth de ordem 2, frequência de corte = 4 Hz
-        :param csi: numpy array de formato ou shape: (pacotes, subportadoras)
-        :return: numpy array de shape: (pacotes, num_tones)
+        Filter that removes high frequencies from the signal
+        Butterworth filter of order 2, cutoff frequency = 4 Hz
+        :param csi: numpy array of shape: (packets, subcarriers)
+        :return: numpy array of shape: (packets, num_tones)
         """
         # Define the filter parameters
         fc = 4  # cutoff frequency
@@ -256,7 +256,7 @@ class BreathEstimationCardioFI:
 
         return [p1p2, p2p3, p3p1]
 
-    def filtro_passa_banda(self, csi, fmin_heart, fmax_heart):
+    def band_pass_filter(self, csi, fmin_heart, fmax_heart):
         order = 1
         b, a = butter(order, [fmin_heart/(self.fs/2), fmax_heart/(self.fs/2)], btype='bandpass')
         # Apply the filter to the signal
@@ -268,12 +268,12 @@ class BreathEstimationCardioFI:
 
         return filtered_data
 
-    def filtro_passa_baixa_decima(self, csi):
+    def low_pass_filter_decimate(self, csi):
         """
-        Filtro que remove frequências altas no sinal
-        Filtro butterworth de ordem 2, frequência de corte = 4 Hz
-        :param csi: numpy array de formato ou shape: (pacotes, subportadoras)
-        :return: numpy array de shape: (pacotes, num_tones)
+        Filter that removes high frequencies from the signal
+        Butterworth filter of order 2, cutoff frequency = 4 Hz
+        :param csi: numpy array of shape: (packets, subcarriers)
+        :return: numpy array of shape: (packets, num_tones)
         """
         # Define the filter parameters
         fc = 4  # cutoff frequency
@@ -305,11 +305,11 @@ class BreathEstimationCardioFI:
         CSI_filt = [p1p2, p2p3, p3p1]
         return CSI_filt
 
-    def varianca_media(self,csi):
+    def mean_variance(self,csi):
 
-        varianceThreshold = 1.2;            # Limiar de variância de 20% acima da média
-        defaultWindowAmount = 5;            # Usa 5 janelas
-        windowDuration = round(3 * self.fs) # de 300 amostras cada (3 segundos)
+        varianceThreshold = 1.2;            # Variance threshold 20% above the mean
+        defaultWindowAmount = 5;            # Uses 5 windows
+        windowDuration = round(3 * self.fs) # of 300 samples each (3 seconds)
         Ev = np.zeros((defaultWindowAmount, csi.shape[1]))
         for subCarrier in range(0, np.size(csi, 1)):
             sub_arrays = np.array_split(csi[:, subCarrier], defaultWindowAmount)
@@ -317,7 +317,7 @@ class BreathEstimationCardioFI:
         thresholdEv = np.mean(Ev, axis=0)*varianceThreshold
         return thresholdEv
 
-    def analisa_janela(selfself, CSIm, thresholdEv):
+    def analyze_window(self, CSIm, thresholdEv):
         num_subcarriers = CSIm.shape[1]
         windowEv = [[] for _ in range(num_subcarriers)]
 
@@ -337,7 +337,7 @@ class BreathEstimationCardioFI:
             windowEv[subCarrier].append(0)
         return windowEv
 
-    def analisa_janelaa(self,CSIm,thresholdEv):
+    def analyze_window_array(self,CSIm,thresholdEv):
         num_subcarriers = CSIm.shape[1]
         window_size = 10
         windowEv = np.zeros((window_size, num_subcarriers), dtype=int)
@@ -361,7 +361,7 @@ class BreathEstimationCardioFI:
         windowEv = windowEv[:windowIndex + 2, :]
         return windowEv
 
-    def calcular_tendencia(self, CSIm, windowEv):
+    def compute_trend(self, CSIm, windowEv):
         trendDW = np.zeros_like(CSIm)
         for subCarrier in range(CSIm.shape[1]):
             for i in range(1, np.size(windowEv[subCarrier])):
@@ -380,92 +380,91 @@ class BreathEstimationCardioFI:
         Sxx = self.fs * np.arange(1, int(len(signal)/2)+1) / len(signal)
         return Sxx, faxis
 
-    def busca_picos_fft_old(self, csi):
+    def find_fft_peaks_old(self, csi):
         """
-        Essa função tem como objetivo buscar os picos de frequência de interesse, que é diretamente a frequência
-        de respiração da pessoa, em Hz.
-        :param csi_pca: numpy array de forma (pacotes, signals)
-        :return: frequencia de respiração em Hz (float)
+        Find the frequency peaks of interest, which is directly the person's breathing frequency, in Hz.
+        :param csi_pca: numpy array of shape (packets, signals)
+        :return: breathing frequency in Hz (float)
         """
-        dt = 1 / self.fs  # período, inverso da frequencia
-        T = csi.shape[0] * dt  # tempo total de captura
+        dt = 1 / self.fs  # period, inverse of the frequency
+        T = csi.shape[0] * dt  # total capture time
         df = 1 / T
         fNQ = (1 / dt) / 2
         fftFreq = np.arange(0, fNQ, df)
-        intervaloMin = np.where(fftFreq >= self.FminBreath)[0][0]
-        intervaloMax = np.where(fftFreq <= self.FmaxBreath)[0][-1]
+        interval_min = np.where(fftFreq >= self.FminBreath)[0][0]
+        interval_max = np.where(fftFreq <= self.FmaxBreath)[0][-1]
         breathBPMResultsSub = []
 
         for subCarrier in range(csi.shape[1]):
             maxFFT = -1000
             maxIndex = 0
             fft = np.fft.fft(csi[:, subCarrier])
-            fft = np.abs(fft[intervaloMin:intervaloMax + 1])
+            fft = np.abs(fft[interval_min:interval_max + 1])
             max_tmp = fft.max()
             max_idx_tmp = np.where(fft == max_tmp)
 
             if max_tmp > maxFFT:
                 maxFFT = max_tmp
-                maxIndex = max_idx_tmp + intervaloMin
+                maxIndex = max_idx_tmp + interval_min
 
-            # estimando taxa respiratória:
+            # estimating the respiratory rate:
             breathBPMResultsSub.append(fftFreq[maxIndex])
         return np.median(breathBPMResultsSub)
 
-    def busca_picos_fft_heart_b(self, csi):
+    def find_fft_peaks_heart_b(self, csi):
 
-        dt = 1 / self.fs  # período, inverso da frequencia
-        T = csi.shape[1] * dt  # tempo total de captura
+        dt = 1 / self.fs  # period, inverse of the frequency
+        T = csi.shape[1] * dt  # total capture time
         df = 1 / T
         fNQ = (1 / dt) / 2
         fftFreq = np.arange(0, fNQ, df)
-        intervaloMin = np.where(fftFreq >= self.get_fmin_heart())[0][0]
-        intervaloMax = np.where(fftFreq <= self.get_fmax_heart())[0][-1]
+        interval_min = np.where(fftFreq >= self.get_fmin_heart())[0][0]
+        interval_max = np.where(fftFreq <= self.get_fmax_heart())[0][-1]
         breathBPMResultsSub = []
 
         for subCarrier in range(csi.shape[0]):
             maxFFT = -1000
             maxIndex = 0
             fft = np.fft.fft(csi[subCarrier,:])
-            fft = np.abs(fft[intervaloMin:intervaloMax + 1])
+            fft = np.abs(fft[interval_min:interval_max + 1])
             max_tmp = fft.max()
             max_idx_tmp = np.where(fft == max_tmp)
 
             if max_tmp > maxFFT:
                 maxFFT = max_tmp
-                maxIndex = max_idx_tmp + intervaloMin
+                maxIndex = max_idx_tmp + interval_min
 
-            # estimando taxa respiratória:
+            # estimating the respiratory rate:
             breathBPMResultsSub.append(fftFreq[maxIndex])
         return np.max(breathBPMResultsSub)
 
-    def busca_picos_fft_heart(self, csi):
+    def find_fft_peaks_heart(self, csi):
         """
-        Essa função tem como objetivo buscar os picos de frequência de interesse.
-        :return: frequencia de batimentos cardíacos em Hz (float)
+        Find the frequency peaks of interest.
+        :return: heartbeat frequency in Hz (float)
         """
-        dt = 1 / self.fs  # período, inverso da frequencia
-        T = csi.shape[0] * dt  # tempo total de captura
+        dt = 1 / self.fs  # period, inverse of the frequency
+        T = csi.shape[0] * dt  # total capture time
         df = 1 / T
         fNQ = (1 / dt) / 2
         fftFreq = np.arange(0, fNQ, df)
-        intervaloMin = np.where(fftFreq >= self.get_fmin_heart())[0][0]
-        intervaloMax = np.where(fftFreq <= self.get_fmax_heart())[0][-1]
+        interval_min = np.where(fftFreq >= self.get_fmin_heart())[0][0]
+        interval_max = np.where(fftFreq <= self.get_fmax_heart())[0][-1]
 
         maxFFT = -1000
         maxIndex = 0
         fft = np.fft.fft(csi)
-        fft = np.abs(fft[intervaloMin:intervaloMax + 1])
+        fft = np.abs(fft[interval_min:interval_max + 1])
         max_tmp = fft.max()
         max_idx_tmp = np.where(fft == max_tmp)
 
         if max_tmp > maxFFT:
             maxFFT = max_tmp
-            maxIndex = max_idx_tmp + intervaloMin
+            maxIndex = max_idx_tmp + interval_min
         a = fftFreq[maxIndex][0]
         return a[0]
 
-    def busca_picos_fft(self, csi):
+    def find_fft_peaks(self, csi):
         fftAmp = []
         breathBPMResultsSub = []
         carrierIndex = 0
@@ -483,12 +482,11 @@ class BreathEstimationCardioFI:
             #                   )
             #           )
 
-    def busca_picos_fft2(self, csi):
+    def find_fft_peaks2(self, csi):
         """
-        Essa função tem como objetivo buscar os picos de frequência de interesse, que é diretamente a frequência
-        de respiração da pessoa, em Hz.
-        :param csi: numpy array do sinal por subportadora
-        :return: frequencia de respiração em Hz (float)
+        Find the frequency peaks of interest, which is directly the person's breathing frequency, in Hz.
+        :param csi: numpy array of the signal per subcarrier
+        :return: breathing frequency in Hz (float)
         """
         fftAmp = []
         breathBPMResultsSub = []
@@ -505,7 +503,7 @@ class BreathEstimationCardioFI:
             freq_amp = freq_amp[freq_index.argsort()]
 
             if len(freq_amp) == 0:
-                # Caso não hajam picos nesse intervalo, use a frequência  do máximo da FFT no intervalo
+                # If there are no peaks in this range, use the frequency of the FFT maximum in the range
                 # Find the maximum value and index within the specified frequency range
                 mask = np.logical_and(fftFreq > self.FminBreath, fftFreq < self.FmaxBreath)
                 amp_masked = fftAmp[mask, carrierIndex]
@@ -527,20 +525,20 @@ class BreathEstimationCardioFI:
     def hampel_jit(self, array, windowsize, n=3):
         array_copy = np.zeros((array.shape[0] + ((windowsize // 2) * 2), array.shape[1]))
         if array_copy.ndim > 1:
-            for subport in range(array_copy.shape[1]):
-                array_copy[:, subport] = np.pad(array[:, subport], windowsize // 2, mode='edge')
-                _for_hampel_jit(array_copy[:, subport], windowsize, n)
+            for subcarrier in range(array_copy.shape[1]):
+                array_copy[:, subcarrier] = np.pad(array[:, subcarrier], windowsize // 2, mode='edge')
+                _for_hampel_jit(array_copy[:, subcarrier], windowsize, n)
 
         else:
             array_copy = np.pad(array_copy, windowsize // 2, mode='edge')
             _for_hampel_jit(array_copy, windowsize, n)
         return array_copy[windowsize // 2:-windowsize // 2]
 
-    def seleciona_subportadoras(self, CSIm):
-        # Seleção de subportadoras
-        # divide o sinal em janelas de 20 s, com step de 1 s
-        # para cada subportadora, calcular a frequência de pico R entre fmin_heart e fmax_heart
-        # calcula psi = 1/(var(R))
+    def select_subcarriers(self, CSIm):
+        # Subcarrier selection
+        # split the signal into 20 s windows, with a 1 s step
+        # for each subcarrier, compute the peak frequency R between fmin_heart and fmax_heart
+        # compute psi = 1/(var(R))
         window_size = round(20 * self.fs)
         window_step = round(1 * self.fs)
         window_index = 0
@@ -550,15 +548,15 @@ class BreathEstimationCardioFI:
             while window_start < CSIm.shape[0]:
                 if (window_start + window_size) < np.size(CSIm, 0):
                     peak_freq[subcarrier].append(
-                        self.busca_picos_fft_heart(CSIm[window_start:window_start + window_size, subcarrier]))
+                        self.find_fft_peaks_heart(CSIm[window_start:window_start + window_size, subcarrier]))
                 else:
-                    peak_freq[subcarrier].append(self.busca_picos_fft_heart(CSIm[window_start:, subcarrier]))
+                    peak_freq[subcarrier].append(self.find_fft_peaks_heart(CSIm[window_start:, subcarrier]))
                 window_index += 1
                 window_start += window_step
 
         spectral_variability = [np.var(sublist) for sublist in peak_freq]
         spectral_stability = 1.0 / np.array(spectral_variability)
-        # Para um score entre 1 e 100, usamos uma normalização entre 0.01 e 1
+        # For a score between 1 and 100, we use a normalization between 0.01 and 1
         spectral_stability_normalized = 1 / np.array(
             np.interp(spectral_variability, (min(spectral_variability), max(spectral_variability)), (0.01, 1)))
 
@@ -566,11 +564,11 @@ class BreathEstimationCardioFI:
 
         return selected_carriers
 
-    def seleciona_subportadoras_b(self, CSIm):
-        # Seleção de subportadoras
-        # divide o sinal em janelas de 20 s, com step de 1 s
-        # para cada subportadora, calcular a frequência de pico R entre fmin_heart e fmax_heart
-        # calcula psi = 1/(var(R))
+    def select_subcarriers_b(self, CSIm):
+        # Subcarrier selection
+        # split the signal into 20 s windows, with a 1 s step
+        # for each subcarrier, compute the peak frequency R between fmin_heart and fmax_heart
+        # compute psi = 1/(var(R))
         window_size = round(20 * self.fs)
         window_step = round(1 * self.fs)
         window_index = 0
@@ -593,7 +591,7 @@ class BreathEstimationCardioFI:
                         pf = freqIndex[np.argmax(freqAmp)]
                     peak_freq[subcarrier].append(pf)
                 else:
-                    #peak_freq[subcarrier].append(self.busca_picos_fft_heart(CSIm[window_start:, subcarrier]))
+                    #peak_freq[subcarrier].append(self.find_fft_peaks_heart(CSIm[window_start:, subcarrier]))
                     fft_freq, fft_a = self.calc_fft(CSIm[window_start:, subcarrier])
                     # define frequency range to search for peaks
                     mask = (fft_freq > self.get_fmin_heart()) & (fft_freq < self.get_fmax_heart())
@@ -612,7 +610,7 @@ class BreathEstimationCardioFI:
 
         spectral_variability = [np.var(sublist) for sublist in peak_freq]
         spectral_stability = 1.0 / np.array(spectral_variability)
-        # Para um score entre 1 e 100, usamos uma normalização entre 0.01 e 1
+        # For a score between 1 and 100, we use a normalization between 0.01 and 1
         spectral_stability_normalized = 1 / np.array(
             np.interp(spectral_variability, (min(spectral_variability), max(spectral_variability)), (0.01, 1)))
 
@@ -624,7 +622,7 @@ class BreathEstimationCardioFI:
         return selected_carriers
 
 
-    def processa_batimentos(self, CSI_filt, selected_carriers):
+    def process_heartbeats(self, CSI_filt, selected_carriers):
         carrier_index = 0
         fft_amp = []
         for sc in selected_carriers:
@@ -645,52 +643,51 @@ class BreathEstimationCardioFI:
         max_freq_index = np.argmax(freqAmp)
         return freqAmp[max_freq_index] * 60
 
-class Apneia:
-    def __init__(self, qtd_de_estimativas: int = 20):
-        self.buffer = []  # acumulador de estimativas (estático, ou seja, apenas das N primeiras estimativas, não muda)
+class Apnea:
+    def __init__(self, num_estimates: int = 20):
+        self.buffer = []  # estimate accumulator (static: only the first N estimates, does not change)
         self.len_buffer = 0
-        self.estimativas_atuais = np.zeros(5)
-        self.medianaEstimativas = -1
-        self.qtd_de_estimativas = qtd_de_estimativas
+        self.current_estimates = np.zeros(5)
+        self.median_estimates = -1
+        self.num_estimates = num_estimates
 
-    def registra_estimativa(self, estimativa: float):
+    def register_estimate(self, estimate: float):
         """
-        Essa função registra a estimativa de frequência de respiração e registra em um buffer até enchê-lo.
-        Caso o buffer esteja cheio, a estimativa é armazenada em um vetor que guarda sempre as 5 estimativas mais recentes.
-        :param estimativa: float com a estimativa de frequência de respiração
+        Store the breathing frequency estimate in a buffer until it is full.
+        Once the buffer is full, the estimate is stored in a vector that always holds the 5 most recent estimates.
+        :param estimate: float with the breathing frequency estimate
         :return: None
         """
-        if self.len_buffer < self.qtd_de_estimativas:
-            self.buffer.append(estimativa)
+        if self.len_buffer < self.num_estimates:
+            self.buffer.append(estimate)
             self.len_buffer = len(self.buffer)
-            if self.qtd_de_estimativas - len(self.buffer) <= 5:
-                self.estimativas_atuais = np.roll(self.estimativas_atuais, -1)
-                self.estimativas_atuais[-1] = estimativa
+            if self.num_estimates - len(self.buffer) <= 5:
+                self.current_estimates = np.roll(self.current_estimates, -1)
+                self.current_estimates[-1] = estimate
 
         else:
-            self.estimativas_atuais = np.roll(self.estimativas_atuais, -1)
+            self.current_estimates = np.roll(self.current_estimates, -1)
             self.buffer = np.roll(self.buffer, -1)
-            self.estimativas_atuais[-1] = estimativa
-            self.buffer[-1] = estimativa
+            self.current_estimates[-1] = estimate
+            self.buffer[-1] = estimate
 
-    def apneia(self):
+    def detect_apnea(self):
         """
-        Essa função calcula se há indício de uma apneia ou não. Para isso, ela usa o buffer de estimativas armazenadas
-        e calcula a mediana delas. Caso mais de três estimativas recentes estejam diferentes da mediana, é acusado como
-        possível apneia.
-        :return: boolean indicando a presença ou não de apneia
+        Compute whether there is an indication of apnea. It uses the buffer of stored estimates and computes
+        their median. If more than three recent estimates differ from the median, possible apnea is reported.
+        :return: boolean indicating the presence or absence of apnea
         """
-        if len(self.buffer) < self.qtd_de_estimativas:  # se o buffer ainda não está com a qtd necessária de estimativas
-            print('Aguardando mais dados...')
+        if len(self.buffer) < self.num_estimates:  # if the buffer does not yet hold the required number of estimates
+            print('Waiting for more data...')
             return False
         else:
-            self.medianaEstimativas = np.median(self.buffer)  # calcula a mediana das estimativas do buffer
-            resultado = np.logical_or(self.estimativas_atuais > self.medianaEstimativas + 0.1,
-                                      self.estimativas_atuais < self.medianaEstimativas - 0.1)
-            print(f"Mediana das estimativas armazenadas: {self.medianaEstimativas}")
-            resultado = np.where(resultado == True)[0]
-            if len(resultado) > 3:
-                print('\033[1;31;40mApneia detectada!\033[0m')
+            self.median_estimates = np.median(self.buffer)  # compute the median of the buffered estimates
+            result = np.logical_or(self.current_estimates > self.median_estimates + 0.1,
+                                      self.current_estimates < self.median_estimates - 0.1)
+            print(f"Median of stored estimates: {self.median_estimates}")
+            result = np.where(result == True)[0]
+            if len(result) > 3:
+                print('\033[1;31;40mApnea detected!\033[0m')
                 return True
             else:
                 return False

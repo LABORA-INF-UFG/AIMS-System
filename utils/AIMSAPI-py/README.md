@@ -1,3 +1,3 @@
 # AIMSAPI
 
-Funcoes e classes auxiliares utilizadas no projeto AIMS para manipular dados e apoiar rotinas de integracao.
+Helper functions and classes used in the AIMS project to handle data and support integration routines.

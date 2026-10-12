@@ -27,7 +27,7 @@ class MockedBreathingRateAndApneaPublisher(Node):
 
         # ==========================
 
-        # Mock the breathing rate and apneia
+        # Mock the breathing rate and apnea
         self.breathing_rate += random.randrange(-2, 2, 1)
 
         if self.breathing_rate < 0:

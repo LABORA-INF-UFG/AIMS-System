@@ -84,11 +84,11 @@ class PersistenceAction(Node):
 
     def callback(self, goal_handle):
 
-        self.get_logger().info("Iniciando captura de {}".format(goal_handle.request.num_frames))
+        self.get_logger().info("Starting capture of {} frames".format(goal_handle.request.num_frames))
 
         self.listener_node.clear_buffers()
 
-        data = time.strftime("%d_%m_%Y-%H:%M")
+        date = time.strftime("%d_%m_%Y-%H:%M")
 
         feedback_msg = Persistence.Feedback()
         recv_frames = len(self.listener_node.frame_buffer)
@@ -104,20 +104,20 @@ class PersistenceAction(Node):
         if not os.path.exists(current_dir + '/captures'):
             os.mkdir(current_dir + '/captures')
 
-        nome_captura_csi = f'{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{data}.txt'
-        with open(f"{os.getenv('AIMS')}/captures/{nome_captura_csi}", "w") as f:
+        capture_name_csi = f'{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{date}.txt'
+        with open(f"{os.getenv('AIMS')}/captures/{capture_name_csi}", "w") as f:
             for item in self.listener_node.frame_buffer:
                 f.write(str(CsiMsgToDict(item)) + "\n")
         
         if len(self.listener_node.heartbeat_buffer) > 0:
-            nome_captura_heartbeat = f'Heartbeats-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{data}.txt'
-            with open(f"{os.getenv('AIMS')}/captures/{nome_captura_heartbeat}", "w") as f:
+            capture_name_heartbeat = f'Heartbeats-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{date}.txt'
+            with open(f"{os.getenv('AIMS')}/captures/{capture_name_heartbeat}", "w") as f:
                 for item in self.listener_node.heartbeat_buffer:
                     f.write(str(item) + "\n")
 
         if len(self.listener_node.breath_buffer) > 0:
-            nome_captura_breath = f'Breaths-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{data}.txt'
-            with open(f"{os.getenv('AIMS')}/captures/{nome_captura_breath}", "w") as f:
+            capture_name_breath = f'Breaths-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{date}.txt'
+            with open(f"{os.getenv('AIMS')}/captures/{capture_name_breath}", "w") as f:
                 for item in self.listener_node.breath_buffer:
                     f.write(str(item) + "\n")
 
@@ -125,7 +125,7 @@ class PersistenceAction(Node):
 
         goal_handle.succeed()
         result = Persistence.Result()
-        result.response = f"Captura ({nome_captura_csi}) salva em '{os.getenv('AIMS')}/captures/'"
+        result.response = f"Capture ({capture_name_csi}) saved to '{os.getenv('AIMS')}/captures/'"
         return result
     
 
@@ -140,7 +140,7 @@ def main():
     _multiThreadedExecutor.add_node(persistence_action_server_node)
 
     try:
-        persistence_action_server_node.get_logger().info('PersistenceAction iniciado.')
+        persistence_action_server_node.get_logger().info('PersistenceAction started.')
         _multiThreadedExecutor.spin()
     except KeyboardInterrupt:
         persistence_action_server_node.get_logger().info('PersistenceAction: Keyboard interrupt, shutting down.\n')

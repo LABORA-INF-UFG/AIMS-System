@@ -14,7 +14,7 @@ class CsiHeatmapNode(Node):
 
     def __init__(self):
 
-        super().__init__('heatmap_plotter')  # criando o nó
+        super().__init__('heatmap_plotter')  # creating the node
 
         self.subscriber_callback_group = MutuallyExclusiveCallbackGroup()
         self._pkt_subscriber = self.create_subscription(
@@ -24,13 +24,13 @@ class CsiHeatmapNode(Node):
             10, callback_group=self.subscriber_callback_group)
         self._pkt_subscriber  # prevent unused variable warning
         
-        self.qtd_pkts_to_plot = 1000
+        self.num_packets_to_plot = 1000
 
         self._estimator = BreathEstimation()
-        self._plotter = Plotter(tam_janela=self.qtd_pkts_to_plot, qtd_subports=57)
+        self._plotter = Plotter(window_size=self.num_packets_to_plot, num_subcarriers=57)
 
-        self.processamento_timer_callback_group = MutuallyExclusiveCallbackGroup()
-        self.processamento_timer = self.create_timer(0.1, self.processamento_and_plot_callback, callback_group=self.processamento_timer_callback_group)
+        self.process_timer_callback_group = MutuallyExclusiveCallbackGroup()
+        self.process_timer = self.create_timer(0.1, self.process_and_plot_callback, callback_group=self.process_timer_callback_group)
 
         self.i = 0
         self.pkts_received = 0
@@ -40,17 +40,17 @@ class CsiHeatmapNode(Node):
     def listener_callback(self, msg):
         #self.get_logger().info('I heard>>: "%s"' % msg.pktid)
 
-        self._estimator.recebe_pacote_csi(msg)
+        self._estimator.receive_csi_packet(msg)
 
         self.pkts_received += 1
 
 
-    def processamento_and_plot_callback(self):
-        if self._estimator.buffer_preenchido and (self.pkts_received - self.pkts_received_before_process >= 20):
+    def process_and_plot_callback(self):
+        if self._estimator.buffer_filled and (self.pkts_received - self.pkts_received_before_process >= 20):
 
             self.pkts_received_before_process = self.pkts_received
             
-            phase_diff = self._estimator.diferenca_de_fase(self._estimator.get_csi()[:, -1*self.qtd_pkts_to_plot:])
+            phase_diff = self._estimator.phase_difference(self._estimator.get_csi()[:, -1*self.num_packets_to_plot:])
             self.heatmap = self._plotter.update(phase_diff, invariant=False)
 
 
@@ -64,7 +64,7 @@ def main(args=None):
 
 
     def ros_context():
-            breath_estimator_publisher.get_logger().info('Nó inicializado, carregando buffer.')
+            breath_estimator_publisher.get_logger().info('Node initialized, loading buffer.')
             executor.spin()
 
 
@@ -74,11 +74,11 @@ def main(args=None):
         node_thread.start()
         while rclpy.ok():
             time.sleep(0.1)
-            if breath_estimator_publisher._estimator.buffer_preenchido:
+            if breath_estimator_publisher._estimator.buffer_filled:
                 cv2.imshow('Heatmap', breath_estimator_publisher.heatmap)
                 cv2.waitKey(1)
             else:
-                print(f'{breath_estimator_publisher._estimator.pkt_count/(breath_estimator_publisher._estimator.segundos_buffer ): .2f}%')
+                print(f'{breath_estimator_publisher._estimator.pkt_count/(breath_estimator_publisher._estimator.buffer_seconds ): .2f}%')
     
     except (KeyboardInterrupt, SystemExit):
         breath_estimator_publisher.destroy_node()

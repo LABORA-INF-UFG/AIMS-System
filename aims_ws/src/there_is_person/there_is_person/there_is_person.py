@@ -13,7 +13,7 @@ class Pose_Estimation(Node):
         super().__init__('Pose_Estimation')
         self.get_logger().info('Pose Etimation node initialized.')
         self.publisher_ = self.create_publisher(Bool, 'there_is_person', 10)
-        # Ciação de um objeto da mensagem
+        # Create a message object
         self.msg = Bool()
         self.msg.data = False
         self.timer_ = self.create_timer(0.1, self.estimation_pose)
@@ -30,39 +30,39 @@ class Pose_Estimation(Node):
         self.input_details = self.interpreter.get_input_details()
         self.output_details = self.interpreter.get_output_details()
 
-        # Inicializa a captura de vídeo da webcam
+        # Initialize the webcam video capture
         self.cap = cv2.VideoCapture(0)
 
-        # Definir o tamanho do buffer como 1
+        # Set the buffer size to 1
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     def estimation_pose(self):
-        # Lê um frame do vídeo
+        # Read a video frame
         ret, frame = self.cap.read()
         #frame = cv2.resize(frame, (self.screen_width, self.screen_height))
 
-        # Redimensiona o frame para a entrada do modelo
+        # Resize the frame to the model input
         input_shape = self.input_details[0]['shape'][1:3]
 
         #input_shape = (256, 256)
         frame_resized = cv2.resize(frame, input_shape, interpolation=cv2.INTER_AREA)
 
-        # Normaliza os valores de pixel do frame para o intervalo [-1, 1]
+        # Normalize the frame pixel values to the range [-1, 1]
         input_data = np.expand_dims(frame_resized, axis=0)
         input_data = (np.float32(input_data) - 127.5) / 127.5
 
-        # Converte os valores de pixel normalizados para UINT8
+        # Convert the normalized pixel values to UINT8
         input_data = np.uint8(input_data * 255)
 
-        # Envia o frame normalizado para o modelo e obtém a saída
+        # Feed the normalized frame to the model and get the output
         self.interpreter.set_tensor(self.input_details[0]['index'], input_data)
         self.interpreter.invoke()
         output_data = self.interpreter.get_tensor(self.output_details[0]['index'])
 
-        # Obtém as coordenadas dos 17 pontos de referência da pose e a confiaça da medição
+        # Get the coordinates of the 17 pose keypoints and the measurement confidence
         keypoints = np.squeeze(output_data)
 
         Articulation_points = []
-        # Pega somente os pontos "importantes" para fazer a deteção da pessoa  
+        # Keep only the "important" points to detect the person  
         # 'left shoulder', 'right shoulder', 'left elbow', 'right elbow', 
         # 'left wrist', 'right wrist','left hip', 'right hip', 'left knee', 'right knee'
         for point, i in zip(keypoints, range(0, 17)):
@@ -75,14 +75,14 @@ class Pose_Estimation(Node):
                     Articulation_points.append(aux)
 
 
-        # Ajusta a câmera para que possa ser plotado o frame
+        # Adjust the camera so the frame can be plotted
         bridge = CvBridge()
         image_msg = bridge.cv2_to_imgmsg(frame, encoding="bgr8")
         frame = np.array(image_msg.data, dtype=np.uint8).reshape((image_msg.height, image_msg.width, -1))
         height = image_msg.height
         width = image_msg.width
 
-        # Marca os pontos das articulações no frame
+        # Mark the joint points on the frame
         for i in range(len(Articulation_points)):
             x, y = int(Articulation_points[i].x * width), int(Articulation_points[i].y * height)
             cv2.circle(frame, (x, y), 8, (0, 255, 0), -1)

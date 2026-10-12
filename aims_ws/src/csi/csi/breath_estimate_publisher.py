@@ -6,17 +6,17 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallb
 #from std_msgs.msg import String
 from custom_interfaces.msg import PktCSI
 from custom_interfaces.msg import BreathEstimate
-from csi.libs.BreathEstimation import BreathEstimation, processamento, Apneia
+from csi.libs.BreathEstimation import BreathEstimation, process, Apnea
 
 
 
-class BreathEstimatePublisher(Node):  # publica as estimativas de respiração e apneia no topico
+class BreathEstimatePublisher(Node):  # publishes the breathing and apnea estimates on the topic
 
     def __init__(self):
 
-        super().__init__('breath_estimate_publisher')  # criando o nó
+        super().__init__('breath_estimate_publisher')  # creating the node
 
-        self._publisher = self.create_publisher(BreathEstimate, 'breath_estimate', 10)  # criando o publisher
+        self._publisher = self.create_publisher(BreathEstimate, 'breath_estimate', 10)  # creating the publisher
 
         self.subscriber_callback_group = MutuallyExclusiveCallbackGroup()
         self._pkt_subscriber = self.create_subscription(
@@ -27,18 +27,18 @@ class BreathEstimatePublisher(Node):  # publica as estimativas de respiração e
         self._pkt_subscriber  # prevent unused variable warning
         
         self._estimator = BreathEstimation()
-        self._apneia = Apneia(qtd_de_estimativas=20) # qtd minima de estimativas até começar a detectar apneia
+        self._apnea = Apnea(num_estimates=20) # minimum number of estimates before apnea detection starts
 
 
         # self.pub_timer_callback_group = self.subscriber_callback_group
         # self.timer = self.create_timer(1.0, self.timer_callback, callback_group=self.pub_timer_callback_group)
 
 
-        self.processamento_timer_callback_group = MutuallyExclusiveCallbackGroup()
-        self.processamento_timer = self.create_timer(0.5, self.processamento_and_pub_callback, callback_group=self.processamento_timer_callback_group)
+        self.process_timer_callback_group = MutuallyExclusiveCallbackGroup()
+        self.process_timer = self.create_timer(0.5, self.process_and_pub_callback, callback_group=self.process_timer_callback_group)
 
         self.breath_estimation = None
-        self.apneia = None
+        self.apnea = None
         self.precision:float = 1.0
 
         self.i = 0
@@ -52,24 +52,24 @@ class BreathEstimatePublisher(Node):  # publica as estimativas de respiração e
         # TODO subplots (amp and phase), split amplitude/phase to plot
         #splitted_phase = [msg.csi.phase[i * self.r:self.r + (i * self.r)] for i in range(self.n)]
 
-        self._estimator.recebe_pacote_csi(msg)
+        self._estimator.receive_csi_packet(msg)
 
         self.pkts_received += 1
 
 
-    def processamento_and_pub_callback(self):
-        if self._estimator.buffer_preenchido and self.pkts_received - self.pkts_received_before_process >= self._estimator.fs:
+    def process_and_pub_callback(self):
+        if self._estimator.buffer_filled and self.pkts_received - self.pkts_received_before_process >= self._estimator.fs:
 
-            #self.get_logger().info('Chamando processamento()')
+            #self.get_logger().info('Calling process()')
 
             self.pkts_received_before_process = self.pkts_received
-            self.apneia, self.breath_estimation = processamento(self._estimator, self._apneia, self.pkts_received)
+            self.apnea, self.breath_estimation = process(self._estimator, self._apnea, self.pkts_received)
 
             breath_estimate_msg = BreathEstimate()
         
             breath_estimate_msg.breath_rate = self.breath_estimation  
             breath_estimate_msg.precision = 1.0
-            breath_estimate_msg.apnea_detected = bool(self.apneia)  # possiveis valores: 0 ou 1
+            breath_estimate_msg.apnea_detected = bool(self.apnea)  # possible values: 0 or 1
 
             self._publisher.publish(breath_estimate_msg)
             #self.get_logger().info('Publishing breath estimate: "%s"' % self.i)
@@ -87,7 +87,7 @@ def main(args=None):
     executor.add_node(breath_estimator_publisher)
 
     try:
-        breath_estimator_publisher.get_logger().info('BreathEstimator iniciado.')
+        breath_estimator_publisher.get_logger().info('BreathEstimator started.')
         executor.spin()
     except KeyboardInterrupt:
         breath_estimator_publisher.get_logger().info('BreathEstimator: Keyboard interrupt, shutting down.\n')

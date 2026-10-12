@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 
 
-EXIBITION_TYPE = "adaptive"
+DISPLAY_TYPE = "adaptive"
 
 
 class Plotter:
-    def __init__(self, tam_janela: int, qtd_subports: int):
-        self.tam_janela = tam_janela
-        self.nsub = qtd_subports
-        self.buffer_img = np.zeros((570, tam_janela, 3))
+    def __init__(self, window_size: int, num_subcarriers: int):
+        self.window_size = window_size
+        self.nsub = num_subcarriers
+        self.buffer_img = np.zeros((570, window_size, 3))
 
     def __del__(self):
         cv2.destroyAllWindows()
@@ -22,21 +22,21 @@ class Plotter:
         return img
 
     def expand_image(self, image):
-        new_img = np.zeros((self.nsub * 10, self.tam_janela), np.uint8)
-        chunks = self.nsub  # quantidade de subportadoras
-        for i in range(chunks):  # expandindo o tamanho de cada subportadora -> cada uma 15 pixels de altura
+        new_img = np.zeros((self.nsub * 10, self.window_size), np.uint8)
+        chunks = self.nsub  # number of subcarriers
+        for i in range(chunks):  # expanding the size of each subcarrier -> each one 10 pixels high
             new_img[i*10:(i+1)*10, :] = image[i, :]
         return new_img
 
     def vec2image(self, vector, type:str = "mean"):
         """
-        Transforma um vetor de valores arbitrário em uma imagem contida no intervalo [0, 255].
-        É uma operação de MinMax scaler no fim das contas.
+        Transform a vector of arbitrary values into an image within the range [0, 255].
+        It is a MinMax scaler operation at the end of the day.
         :param vector: np.ndarray
         :param type: str in ["mean", "abs", "iqr", "adaptive"]
         :return: np.ndarray
         """
-        #print(f"Minimo vetor {np.min(vector)}, Maximo vetor: {np.max(vector)}")
+        #print(f"Vector minimum {np.min(vector)}, vector maximum: {np.max(vector)}")
 
         if type == "mean":
             min = -38
@@ -53,11 +53,11 @@ class Plotter:
             min = (Q1 - 1.5 * IQR)
             max = Q3 + 1.5 * IQR
         else:
-            raise ValueError(f"Valor de tipo de minimo e maximo invalido: {type}")
+            raise ValueError(f"Invalid min/max type value: {type}")
 
         #################################################
-        #array_min_max = [[max, min]] * vector.shape[0]  # esse vetor força os limites min e max aparecer no vetor de valores
-        #vector = np.concatenate((vector, array_min_max), axis=1)  # lembrando que devem ser removidas as 2 ultimas colunas na hora de plotar
+        #array_min_max = [[max, min]] * vector.shape[0]  # this vector forces the min and max limits to appear in the values vector
+        #vector = np.concatenate((vector, array_min_max), axis=1)  # note that the last 2 columns must be removed when plotting
         ###########################################################
 
         vector = (vector - min) / (max - min)
@@ -65,9 +65,9 @@ class Plotter:
         return vector.astype(np.uint8)
 
     def update(self, phase_diff: np.ndarray, invariant=True):
-        phase_diff = phase_diff.T[:, -1 * self.tam_janela:]
-        img = self.vec2image(phase_diff, type=EXIBITION_TYPE)
-        img = self.expand_image(img)  # expandindo a quantidade de pixels da imagem no axis 0
+        phase_diff = phase_diff.T[:, -1 * self.window_size:]
+        img = self.vec2image(phase_diff, type=DISPLAY_TYPE)
+        img = self.expand_image(img)  # expanding the number of image pixels along axis 0
         heatmap = cv2.applyColorMap(img, cv2.COLORMAP_HSV)
         if invariant:
             self.buffer_img = np.roll(self.buffer_img, (0, -20, 0), axis=(0, 1, 2))

@@ -6,20 +6,20 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup, ReentrantCallb
 import time
 from custom_interfaces.msg import PktCSI
 from custom_interfaces.msg import BreathEstimate
-from csi.libs.BreathEstimationCardiofi import BreathEstimationCardioFI, processamento
+from csi.libs.BreathEstimationCardiofi import BreathEstimationCardioFI, process
 from std_msgs.msg import Float32
 import warnings
 warnings.filterwarnings("ignore")
 
 
-class BreathEstimateCardiofiPublisher(Node):  # publica as estimativas de respiração e apneia no topico
+class BreathEstimateCardiofiPublisher(Node):  # publishes the breathing and heart estimates on the topics
 
     def __init__(self):
 
-        super().__init__('cardiofi_estimate_publisher')  # criando o nó
+        super().__init__('cardiofi_estimate_publisher')  # creating the node
 
-        self._publisher_breath = self.create_publisher(Float32, 'breath_estimate_cardiofi', 10)  # criando o publisher
-        self._publisher_heart  = self.create_publisher(Float32, 'heart_estimate_cardiofi', 10)  # criando o publisher
+        self._publisher_breath = self.create_publisher(Float32, 'breath_estimate_cardiofi', 10)  # creating the publisher
+        self._publisher_heart  = self.create_publisher(Float32, 'heart_estimate_cardiofi', 10)  # creating the publisher
 
         self.subscriber_callback_group = MutuallyExclusiveCallbackGroup()
         self._pkt_subscriber = self.create_subscription(
@@ -35,8 +35,8 @@ class BreathEstimateCardiofiPublisher(Node):  # publica as estimativas de respir
         # self.timer = self.create_timer(1.0, self.timer_callback, callback_group=self.pub_timer_callback_group)
 
 
-        self.processamento_timer_callback_group = MutuallyExclusiveCallbackGroup()
-        self.processamento_timer = self.create_timer(0.5, self.processamento_and_pub_callback, callback_group=self.processamento_timer_callback_group)
+        self.process_timer_callback_group = MutuallyExclusiveCallbackGroup()
+        self.process_timer = self.create_timer(0.5, self.process_and_pub_callback, callback_group=self.process_timer_callback_group)
 
         self.breath_estimation = None
         self.heart_estimation = None
@@ -49,19 +49,19 @@ class BreathEstimateCardiofiPublisher(Node):  # publica as estimativas de respir
 
     def listener_callback(self, msg):
         
-        #self.get_logger().info('Pacote recebido '+str(self.pkts_received))
-        self._estimator.recebe_pacote_csi(msg)
+        #self.get_logger().info('Packet received '+str(self.pkts_received))
+        self._estimator.receive_csi_packet(msg)
         self.pkts_received += 1
 
 
-    def processamento_and_pub_callback(self):
-        if self._estimator.buffer_preenchido and self.pkts_received - self.pkts_received_before_process >= self._estimator.fs:
+    def process_and_pub_callback(self):
+        if self._estimator.buffer_filled and self.pkts_received - self.pkts_received_before_process >= self._estimator.fs:
 
-            self.get_logger().info('Chamando processamento()')
+            self.get_logger().info('Calling process()')
             start_time = time.time()
             
             self.pkts_received_before_process = self.pkts_received
-            self.breath_estimation, self.heart_estimation = processamento(self._estimator)
+            self.breath_estimation, self.heart_estimation = process(self._estimator)
             end_time = time.time()
             self.get_logger().info("Execution time: {:.4f} seconds".format(end_time - start_time))
             breath_estimate_msg = BreathEstimate()

@@ -177,11 +177,11 @@ def draw_confusion_matrix(y_pred, y_test, figsize=(7,7),save_image = False):
     # set up the plot
     plt.figure(figsize=figsize)
     plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title('Matriz de Confusão')
+    plt.title('Confusion Matrix')
     plt.colorbar()
     tick_marks = np.arange(2)
-    plt.xticks(tick_marks, ['Negativo', 'Positivo'], rotation=45)
-    plt.yticks(tick_marks, ['Negativo', 'Positivo'])
+    plt.xticks(tick_marks, ['Negative', 'Positive'], rotation=45)
+    plt.yticks(tick_marks, ['Negative', 'Positive'])
 
     # fill the confusion matrix
     thresh = cm.max() / 2.
@@ -191,10 +191,10 @@ def draw_confusion_matrix(y_pred, y_test, figsize=(7,7),save_image = False):
                  color='white' if cm[i, j] > thresh else 'black')
 
     # add axis labels
-    plt.ylabel('Label Real')
-    plt.xlabel('Label Predita')
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
     if save_image:
-      plt.savefig('Exemplo.png')
+      plt.savefig('confusion_matrix.png')
     # show the plot
     plt.show()
 

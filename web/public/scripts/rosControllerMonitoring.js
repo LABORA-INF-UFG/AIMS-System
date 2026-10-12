@@ -109,7 +109,7 @@ function setIs_person(issuer, status) {
 
 function toggle_no_person_div(){
   const no_person_div = document.getElementById('no_person_div');
-  const results_div = document.getElementById('results');
+  const results_div = document.getElementById('results-container');
   const debug = document.getElementById('debug').checked;
   
   if(debug || is_person && !equipments.none){

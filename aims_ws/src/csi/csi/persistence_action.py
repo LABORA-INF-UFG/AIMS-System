@@ -1,11 +1,21 @@
 from custom_interfaces.action import Persistence
 from custom_interfaces.msg import PktCSI, HeartControl, BreathControl
-import rclpy, os, time
+import rclpy, os, re, time
 from rclpy.node import Node
 from rclpy.action import ActionServer
 from csi.libs.CsiMsgToDict import CsiMsgToDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+
+def _safe(value):
+    # Values come from the web form; keep file names valid on Windows bind mounts.
+    return re.sub(r'[^A-Za-z0-9_-]', '_', str(value))
+
+
+def capture_file_name(req, date, prefix=''):
+    parts = [req.capture_name, req.subject_id, req.rx_nic_model, req.tx_nic_model,
+             req.subject_position, f'{req.antenna_distance_cm}cm']
+    return prefix + '-'.join(_safe(p) for p in parts) + f'-{date}.txt'
 
 
 class Listener(Node):
@@ -88,7 +98,7 @@ class PersistenceAction(Node):
 
         self.listener_node.clear_buffers()
 
-        date = time.strftime("%d_%m_%Y-%H:%M")
+        date = time.strftime("%d_%m_%Y-%H-%M")
 
         feedback_msg = Persistence.Feedback()
         recv_frames = len(self.listener_node.frame_buffer)
@@ -104,19 +114,19 @@ class PersistenceAction(Node):
         if not os.path.exists(current_dir + '/captures'):
             os.mkdir(current_dir + '/captures')
 
-        capture_name_csi = f'{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{date}.txt'
+        capture_name_csi = capture_file_name(goal_handle.request, date)
         with open(f"{os.getenv('AIMS')}/captures/{capture_name_csi}", "w") as f:
             for item in self.listener_node.frame_buffer:
                 f.write(str(CsiMsgToDict(item)) + "\n")
         
         if len(self.listener_node.heartbeat_buffer) > 0:
-            capture_name_heartbeat = f'Heartbeats-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{date}.txt'
+            capture_name_heartbeat = capture_file_name(goal_handle.request, date, 'Heartbeats-')
             with open(f"{os.getenv('AIMS')}/captures/{capture_name_heartbeat}", "w") as f:
                 for item in self.listener_node.heartbeat_buffer:
                     f.write(str(item) + "\n")
 
         if len(self.listener_node.breath_buffer) > 0:
-            capture_name_breath = f'Breaths-{goal_handle.request.capture_name}-{goal_handle.request.subject_id}-{goal_handle.request.rx_nic_model}-{goal_handle.request.tx_nic_model}-{goal_handle.request.subject_position}-{goal_handle.request.antenna_distance_cm}cm-{date}.txt'
+            capture_name_breath = capture_file_name(goal_handle.request, date, 'Breaths-')
             with open(f"{os.getenv('AIMS')}/captures/{capture_name_breath}", "w") as f:
                 for item in self.listener_node.breath_buffer:
                     f.write(str(item) + "\n")

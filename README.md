@@ -1,156 +1,238 @@
-
 # AIMS System
 
-**A**dvanced **M**ult**I**Modal **S**ensing — Sistema de monitoramento contactless de sinais vitais baseado em Wi-Fi CSI, ROS2 e interface web.
+**A**dvanced **M**ulti**I**modal **S**ensing: a contactless vital-sign monitoring system based on Wi-Fi Channel State Information (CSI), ROS2 and a web interface.
 
-## Arquitetura
+AIMS captures CSI frames from an Intel IWL5300 NIC with [PicoScenes](https://ps.zpj.io/), publishes them as ROS2 messages, estimates breathing rate (and detects apnea) from them in real time, and shows the signals in a browser dashboard. Captures can be saved to text files for offline analysis. A mock CSI source lets you run the whole pipeline without any hardware.
+
+## How to cite
+
+If you use this software, please cite the article. Citation metadata for GitHub's "Cite this repository" button is in [CITATION.cff](CITATION.cff). The fields below are placeholders and must be completed by the authors:
+
+```bibtex
+@article{TODO_citation_key,
+  author  = {TODO: authors},
+  title   = {TODO: article title},
+  journal = {TODO: venue},
+  year    = {TODO: year},
+  doi     = {TODO: DOI}
+}
+```
+
+## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  HOST (Linux)                                                                │
-│  ┌──────────────────┐          UDP (packet-forward)                          │
-│  │   PicoScenes      │────────────────────────────────────┐                  │
-│  │   (IWL5300 NIC)   │         127.0.0.1:1025             │                  │
-│  └──────────────────┘                                     │                  │
-├───────────────────────────────────────────────────────────┼──────────────────┤
-│  DOCKER (network_mode: host)                              ▼                  │
+│  HOST (Linux, only for real hardware)                                        │
+│  ┌───────────────────┐   UDP, one CSI frame per datagram                     │
+│  │ PicoScenes        │────────────────────────────┐                          │
+│  │ (IWL5300 NIC)     │   --forward 127.0.0.1:1025 │                          │
+│  └───────────────────┘                            │                          │
+├───────────────────────────────────────────────────┼──────────────────────────┤
+│  DOCKER COMPOSE (bridge network, published ports) ▼ UDP 1025                 │
 │  ┌──────────────────────────────────────────────────────────────────────┐    │
-│  │  ros2-nodes                                                          │    │
-│  │  ├─ csi_publisher (recebe UDP, faz parse, publica /pktcsi)           │    │
-│  │  ├─ breath_estimator (estima respiração, publica /estimativebreath)  │    │
-│  │  ├─ csi_heatmap_publisher (publica /heatmap)                         │    │
-│  │  ├─ persistence_action (salva capturas em disco)                     │    │
-│  │  └─ persistence_bridge                                               │    │
+│  │ ros2-nodes                                                           │    │
+│  │  CSI_SOURCE=mock       mock_csi ──────────┐                          │    │
+│  │  CSI_SOURCE=picoscenes csi_publisher ─────┴─► /pktcsi                │    │
+│  │  breath_estimator ─► /breath_estimate                                │    │
+│  │  csi_heatmap_publisher ─► /heatmap                                   │    │
+│  │  persistence_action + persistence_bridge ─► captures/*.txt           │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                      │ DDS (inside the bridge network)                       │
+│  ┌───────────────────▼──────────────────────────────────────────────────┐    │
+│  │ rosbridge  (WebSocket :9090 <-> ROS2 topics)                         │    │
 │  └──────────────────────────────────────────────────────────────────────┘    │
 │  ┌──────────────────────────────────────────────────────────────────────┐    │
-│  │  rosbridge (WebSocket :9090 ↔ DDS)                                   │    │
+│  │ web  (Express.js :3001: serves the dashboard and GET /config)        │    │
 │  └──────────────────────────────────────────────────────────────────────┘    │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  DOCKER (bridge network)                                                     │
-│  ┌───────────────────────┐    ┌──────────────────┐                           │
-│  │  web (:3001)           │    │  mongo (:27017)   │                          │
-│  │  Express.js            │───▶│  MongoDB 7        │                          │
-│  │  Patient management    │    │  Volume persist.  │                          │
-│  └───────────────────────┘    └──────────────────┘                           │
 └──────────────────────────────────────────────────────────────────────────────┘
+        Browser ──HTTP :3001──► web      Browser ──WebSocket :9090──► rosbridge
 ```
 
-## Início Rápido (Docker)
+The browser talks to rosbridge directly (roslib.js), at the same hostname that served the page. The full diagram of the original system is in [architecture-v0.png](architecture-v0.png). The reasoning behind the main decisions is in [docs/adrs/](docs/adrs/README.md).
 
-### Pré-requisitos
+## Quick start (mock mode, no hardware)
 
-- [Docker](https://docs.docker.com/get-docker/) e [Docker Compose](https://docs.docker.com/compose/install/)
-- PicoScenes instalado no host (apenas se usar hardware real — ver [picoscenes/README.md](picoscenes/README.md))
-
-### 1. Configurar variáveis de ambiente
+You need [Docker](https://docs.docker.com/get-docker/) with Docker Compose >= 2.24. Nothing else, and no `.env` file.
 
 ```bash
-cp .env.example .env
-# Edite .env conforme necessário
-```
-
-### 2. Subir a stack
-
-```bash
-# Build e start de todos os serviços
+git clone https://github.com/LABORA-INF-UFG/AIMS-System.git
+cd AIMS-System
 docker compose up -d --build
-
-# Acompanhar logs
-docker compose logs -f
 ```
 
-### 3. Acessar
+Open http://localhost:3001 and go to **Monitoring**. The first build takes a while (ROS2 image). The breathing estimate needs about 35 seconds after start to publish its first value (30 s buffer at 100 Hz); the charts fill after that.
 
-- **Interface web**: http://localhost:3001
-- **Rosbridge WebSocket**: ws://localhost:9090
+Stop with `docker compose down`. Logs: `docker compose logs -f`.
 
-### 4. Parar
+If you have `make`, `make up`, `make down`, `make logs` and `make build` wrap the same commands.
 
-```bash
-docker compose down
+## Hardware mode (real CSI)
+
+Hardware mode needs a **Linux machine (Ubuntu, amd64) with an Intel IWL5300 NIC**. PicoScenes depends on the host's kernel driver and NIC firmware, so it runs on the host, not in Docker. It forwards each CSI frame by UDP to port 1025, where the container listens.
+
+1. Install PicoScenes on the host (once), then reboot:
+   ```bash
+   scripts/host/install_picoscenes.sh      # or: make host-setup
+   sudo reboot
+   ```
+2. Start the receiver on the host (adjust the NIC name; see `ip link`):
+   ```bash
+   scripts/host/picoscenes_rx.sh --nic wlp2s0 --freq 5180 --bw HT20
+   ```
+3. Start the stack with the real CSI source:
+   ```bash
+   CSI_SOURCE=picoscenes docker compose up -d --build     # or: make up-hardware
+   ```
+4. On a second machine, start the transmitter that injects packets:
+   ```bash
+   scripts/host/picoscenes_tx.sh --nic wlp1s0
+   ```
+
+Details, flags and the optional systemd service are in [picoscenes/README.md](picoscenes/README.md).
+
+## Environment variables
+
+All variables are optional: each has a built-in default (the value shown). To change one, set it in the shell or copy `.env.example` to `.env` (Compose >= 2.24 reads it if present).
+
+| Variable | Default | Used by | Description |
+|---|---|---|---|
+| `CSI_SOURCE` | `mock` | ros2-nodes | `mock` replays a recorded frame; `picoscenes` reads UDP frames from PicoScenes |
+| `CSI_UDP_HOST` | `0.0.0.0` | ros2-nodes | Address `csi_publisher` listens on (also hosts the published UDP port) |
+| `CSI_UDP_PORT` | `1025` | ros2-nodes | UDP port for CSI frames |
+| `ROS_DOMAIN_ID` | `5` | ros2-nodes, rosbridge | ROS2 DDS domain; must match across machines |
+| `RMW_IMPLEMENTATION` | `rmw_fastrtps_cpp` | ros2-nodes, rosbridge | ROS2 middleware |
+| `FASTRTPS_DEFAULT_PROFILES_FILE` | `/app/aims_ws/src/fastdds_profile.xml` | ros2-nodes, rosbridge | FastDDS profile |
+| `ROS_DISTRO` | `humble` | `.env.example` only | Documents the target ROS2 distribution; not read by `docker-compose.yml` |
+| `WEB_PORT` | `3001` | web | Host port of the dashboard |
+| `NODE_ENV` | `development` | web | Node.js environment |
+| `ROSBRIDGE_PORT` | `9090` | rosbridge, web | Host port of the rosbridge WebSocket; the web server hands it to the browser via `GET /config` |
+| `KERAS_APNEA_MODEL` | `/app/models/apenaDetection_AIMS_model1.h5` | ros2-nodes | Path to the apnea AI model inside the container (see [models/README.md](models/README.md)) |
+| `PICOSCENES_FORWARD_HOST` | `127.0.0.1` | host scripts | Where `picoscenes_rx.sh` forwards frames |
+| `PICOSCENES_FORWARD_PORT` | `1025` | host scripts | UDP port to forward to |
+| `PICOSCENES_NIC` | `wlp2s0` | host scripts | RX NIC name |
+| `PICOSCENES_PHYPATH` | `2` | host scripts | PicoScenes PhyPath of the RX NIC |
+| `PICOSCENES_FREQ` | `5180` | host scripts | Center frequency in MHz |
+| `PICOSCENES_BW` | `HT20` | host scripts | Bandwidth (`HT20`, `HT40`, `HT40+`, `HT40-`) |
+| `PICOSCENES_TX_NIC` | none (required, or `--nic`) | `picoscenes_tx.sh` | TX NIC name |
+| `PICOSCENES_TX_PHYPATH` | `1` | `picoscenes_tx.sh` | PicoScenes PhyPath of the TX NIC |
+| `PICOSCENES_TX_DELAY_US` | `10000` | `picoscenes_tx.sh` | Gap between injected packets, in microseconds |
+
+The `PICOSCENES_*` variables are read only by the host scripts, not by the containers. The `apenaDetection` spelling is kept on purpose so existing model files keep working.
+
+## ROS2 nodes and topics
+
+| Executable | Role | Publishes | Subscribes |
+|---|---|---|---|
+| `csi_publisher` | Parses CSI frames received over UDP (`CSI_SOURCE=picoscenes`) | `/pktcsi` | |
+| `mock_csi` | Replays a recorded CSI frame (`CSI_SOURCE=mock`) | `/pktcsi` | |
+| `breath_estimator` | Breathing rate and apnea flag | `/breath_estimate` | `/pktcsi` |
+| `csi_heatmap_publisher` | CSI heatmap image | `/heatmap` | `/pktcsi` |
+| `persistence_action` | Action server `persist_csi`: saves N frames to `captures/` | | `/pktcsi`, `/heart_control`, `/breath_control` |
+| `persistence_bridge` | Lets the web page start a capture | `/persistence_bridge/response`, `/persistence_bridge/feedback` | `/persistence_bridge/request` |
+
+These six run in the default launch (`ros2 launch csi aims_launch.py`). Other executables exist in `aims_ws/src/csi` and are not started by default: `breath_estimator_cardiofi` (`/breath_estimate_cardiofi`, `/heart_estimate_cardiofi`), `apnea_ai` (`/apnea_ai`, needs the model file), `heart_control`, `breath_control`, `mock_breathing`, `mock_heart_beat`, `breath_plotter`, `csi_heatmap_plotter`, `mmw_talker`, `octave_cardiofi`. The dashboard also subscribes to `/vision_image` and `/there_is_person` (published by the `there_is_person` package, which is not part of the default launch; see [aims_ws/src/there_is_person/README.md](aims_ws/src/there_is_person/README.md)).
+
+Message definitions are in `aims_ws/src/custom_interfaces` (`BreathEstimate` has `breath_rate`, `precision`, `apnea_detected`).
+
+## Capture file format
+
+In the dashboard, open the persistence panel, fill the form (capture name, **Subject ID**, NIC models, subject position, antenna distance, number of frames) and start. Files are written to `./captures/` in the repository folder (a bind mount of `/app/captures`).
+
+The **Subject ID** is free text, required, and limited to letters, digits, `_` and `-`. It is the only identification of the subject; there is no patient database or login.
+
+File name:
+
+```
+{capture_name}-{subject_id}-{rx_nic_model}-{tx_nic_model}-{subject_position}-{antenna_distance_cm}cm-{DD_MM_YYYY-HH-MM}.txt
 ```
 
-## Serviços
+- Every component is sanitized: characters outside `A-Za-z0-9_-` become `_`, so there is no `:` and the names are valid on Windows.
+- Two extra files are written when the optional `heart_control` / `breath_control` publishers produced data: the same name with the prefix `Heartbeats-` or `Breaths-`.
+- Each line of the CSI file is the Python `str()` of a dictionary built from one `/pktcsi` message (`aims_ws/src/csi/csi/libs/CsiMsgToDict.py`). Heartbeat and breath files hold `{'timestamp', 'pktid'}` dictionaries.
+- `utils/AIMSAPI-py` holds helper functions for handling AIMS data; see its [README](utils/AIMSAPI-py/README.md).
 
-| Serviço | Descrição | Rede | Porta |
-|---------|-----------|------|-------|
-| `ros2-nodes` | Nós ROS2 de processamento CSI | host | — |
-| `rosbridge` | Ponte WebSocket ↔ DDS | host | 9090 |
-| `web` | Express.js (pacientes + monitoramento) | bridge | 3001 |
-| `mongo` | MongoDB (dados de pacientes) | bridge | 27017 |
+Subject positions are the ASCII values of the position selector in the dashboard (for example `sitting_front`, `lying_45deg_feet_to_window`).
 
-## Nós ROS2 e Tópicos
+## Supported platforms
 
-| Nó | Função | Tópicos |
-|---|---|---|
-| `csi_publisher` | Recebe frame CSI do PicoScenes via UDP, faz parse e publica | `/pktcsi` |
-| `mock_csi` | Simula envio de pacotes CSI a partir de arquivo | `/pktcsi` |
-| `breath_estimator` | Estimativa de respiração e detecção de apneia | `/estimativebreath` |
-| `csi_heatmap_publisher` | Publica heatmap para feedback visual | `/heatmap` |
-| `persistence_action` | Action server para persistir capturas CSI | `/persist_csi` |
-| `persistence_bridge` | Ponte de persistência para interação web | — |
+| Mode | Linux | Windows | macOS |
+|---|---|---|---|
+| Mock (`CSI_SOURCE=mock`) with Docker | yes | yes (Docker Desktop) | yes (Docker Desktop) |
+| Hardware (`CSI_SOURCE=picoscenes`) | yes: Ubuntu amd64 host with IWL5300 | no | no |
+| Host networking override | yes | no | no |
 
-## Variáveis de Ambiente
+Hardware mode needs PicoScenes on the host, which depends on the Linux kernel driver and NIC firmware, so it cannot run in Docker.
 
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `ROS_DOMAIN_ID` | `5` | Domínio DDS para isolamento de rede ROS2 |
-| `RMW_IMPLEMENTATION` | `rmw_fastrtps_cpp` | Middleware ROS2 |
-| `CSI_UDP_PORT` | `1025` | Porta UDP para receber frames do PicoScenes |
-| `WEB_PORT` | `3001` | Porta do servidor web |
-| `MONGO_URI` | `mongodb://mongo:27017/mycaredb` | String de conexão MongoDB |
-| `ROSBRIDGE_PORT` | `9090` | Porta WebSocket do rosbridge |
-| `KERAS_APNEA_MODEL` | `/app/models/...` | Caminho para modelo de IA (volume) |
+## Distributed setups (multiple machines)
 
-## Modos de Operação
-
-### Com hardware PicoScenes (produção)
-
-1. No host Linux: executar `./picoscenes_routine_rx.bash`
-2. Docker: `docker compose up -d`
-3. O `csi_publisher` recebe frames via UDP automaticamente
-
-### Sem hardware (desenvolvimento)
-
-O sistema detecta automaticamente que PicoScenes não está disponível e lança o `mock_csi` que reproduz frames do arquivo `single_csi_frame.txt`.
+Run nodes on different machines with the same `ROS_DOMAIN_ID` and use host networking so DDS discovery works across the LAN (Linux only):
 
 ```bash
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.hostnet.yml up -d
 ```
 
-### Sistema Distribuído
+## Troubleshooting
 
-Para executar nós em máquinas diferentes, mantenha o mesmo `ROS_DOMAIN_ID` em todas as máquinas e garanta conectividade de rede entre elas. O `network_mode: host` permite DDS discovery via multicast.
+| Symptom | What to check |
+|---|---|
+| Dashboard opens but charts are empty | Wait about 35 s after start for the first `/breath_estimate`. Check `docker compose logs ros2-nodes`. |
+| `docker compose` complains about `env_file` / `required` | Compose is older than 2.24; update Docker Compose. |
+| `exec /entrypoint.sh: no such file or directory` on Windows | `entrypoint.sh` got CRLF line endings. `.gitattributes` forces LF; re-checkout the file (`git rm --cached` and `git checkout`) or re-clone. |
+| Port already in use | Change `WEB_PORT`, `ROSBRIDGE_PORT` or `CSI_UDP_PORT`. |
+| Dashboard cannot connect to rosbridge from another machine | Port `ROSBRIDGE_PORT` (default 9090) must be reachable at the same hostname you use for the page. |
+| `csi_publisher` logs "No PicoScenes UDP frames ... yet" (hardware mode) | Is `picoscenes_rx.sh` running? Is `CSI_SOURCE=picoscenes` set? Does the NIC name match (`ip link`)? Is the transmitter running? |
+| Apnea AI node disabled | The `.h5` model is not shipped; place it in `./models` and set `KERAS_APNEA_MODEL`. |
+| `picoscenes_rx.sh`: PicoScenes not found | Run `scripts/host/install_picoscenes.sh` and reboot. |
+| Installer says no IWL5300 found | It refuses without the card. Pass `--skip-hardware-check` to install anyway. |
 
-## Desenvolvimento Local (sem Docker)
+**Hardware mode with bridge networking on Linux has not been tested yet.** The expected path is PicoScenes forwarding to `127.0.0.1:1025`, which reaches the container through the published UDP port. If frames do not arrive, use the host networking override (`docker-compose.hostnet.yml`, see above) or forward to the host's LAN IP (`scripts/host/picoscenes_rx.sh --forward <host-ip>:1025`).
 
-### Dependências
+## Project layout
 
-- [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html)
-- [Node.js 18](https://nodejs.org/)
-- [MongoDB 7](https://www.mongodb.com/docs/manual/installation/)
-- Python 3.10+
+```
+.
+├── aims_ws/src/            # ROS2 workspace
+│   ├── csi/                # CSI nodes, launch files, signal processing libs
+│   ├── custom_interfaces/  # .msg / .srv / .action definitions
+│   └── there_is_person/    # experimental person detection (TensorFlow Lite)
+├── web/                    # Express.js server and dashboard (Tailwind CSS, roslib.js)
+├── docker/                 # Dockerfiles (ros2, web)
+├── docker-compose.yml      # default stack (bridge network)
+├── docker-compose.hostnet.yml  # optional host-networking override
+├── scripts/host/           # PicoScenes install / RX / TX scripts (run on the host)
+├── scripts/legacy/         # old bare-metal scripts, kept for reference
+├── picoscenes/             # PicoScenes host setup guide
+├── models/                 # AI model files (mounted read-only; not shipped)
+├── captures/               # capture output (bind mount)
+├── resources/              # patched PicoScenes parser, test assets
+├── utils/AIMSAPI-py/       # Python helpers to read capture files
+├── docs/                   # changelog and ADRs
+├── Makefile                # thin wrapper around docker compose
+└── CITATION.cff
+```
 
-### Build do workspace ROS2
+## Local development without Docker
+
+Requirements: [ROS2 Humble](https://docs.ros.org/en/humble/Installation.html), Node.js 20, Python 3.10+.
 
 ```bash
+# ROS2 workspace
 source /opt/ros/humble/setup.bash
 cd aims_ws
 colcon build --symlink-install
 source install/local_setup.bash
-```
 
-### Web server
-
-```bash
+# Web server (in another terminal)
 cd web
-cp .env.example .env
 npm install
+npm run build:css
 npm run dev
 ```
 
-## Repositório Oficial
+See [web/README.md](web/README.md) for the web server.
 
-```
-https://github.com/LABORA-INF-UFG/AIMS-System
-```
+## Contributing and history
+
+- Changes: [docs/CHANGELOG.md](docs/CHANGELOG.md). v0.3.0 contains breaking renames; read it if you have data from earlier versions.
+- Decisions: [docs/adrs/](docs/adrs/README.md).
+- Repository: https://github.com/LABORA-INF-UFG/AIMS-System

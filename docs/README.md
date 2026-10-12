@@ -1,26 +1,29 @@
-# Documentação — AIMS-System
+# Documentation — AIMS-System
 
-Este diretório centraliza a documentação técnica do projeto AIMS-System.
+This directory holds the technical documentation of the AIMS-System project. For setup and usage, start with the [root README](../README.md).
 
-## Estrutura
+## Structure
 
 ```
 docs/
-├── README.md          # Este arquivo
-├── CHANGELOG.md       # Histórico de alterações do projeto
+├── README.md          # This file
+├── CHANGELOG.md       # Project change history
 └── adrs/              # Architectural Decision Records
-    ├── README.md      # Índice dos ADRs
-    ├── ADR-0001-...   # Adoção do Docker Compose
-    ├── ADR-0002-...   # ROS2 Humble como versão alvo
-    ├── ADR-0003-...   # Host Networking para ROS2 DDS
-    ├── ADR-0004-...   # Rosbridge como camada de integração
-    └── ADR-0005-...   # TailwindCSS v4 como framework de estilização
+    ├── README.md      # ADR index and template
+    ├── ADR-0001-docker-compose-for-orchestration.md
+    ├── ADR-0002-ros2-humble-as-target-version.md
+    ├── ADR-0003-host-networking-for-ros2-dds.md
+    ├── ADR-0004-rosbridge-as-web-ros2-integration-layer.md
+    ├── ADR-0005-tailwindcss-v4-as-styling-framework.md
+    ├── ADR-0006-remove-mongodb-and-patient-management.md
+    ├── ADR-0007-picoscenes-on-host-explicit-csi-source.md
+    └── ADR-0008-bridge-networking-as-default.md
 ```
 
-## O que é cada documento?
+## What each document is
 
 ### [CHANGELOG.md](./CHANGELOG.md)
-Registro cronológico de todas as alterações significativas do projeto, seguindo o padrão [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
+Chronological record of significant project changes, following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). It lists breaking renames, so read it if you have captures or scripts from before v0.3.0.
 
 ### [adrs/](./adrs/README.md)
-**Architectural Decision Records (ADRs)** documentam as decisões arquiteturais tomadas durante o desenvolvimento, incluindo o contexto, as alternativas consideradas e as consequências de cada decisão. O formato adotado é o **MADR (Markdown Any Decision Records)**.
+**Architectural Decision Records (ADRs)** document the architectural decisions made during development, including the context, the alternatives considered and the consequences of each decision. The format is **MADR (Markdown Any Decision Records)**.

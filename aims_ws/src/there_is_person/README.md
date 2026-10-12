@@ -6,7 +6,7 @@ Person detection node based on TensorFlow Lite.
 
 ```bash
 cd aims_ws
-source /opt/ros/foxy/setup.bash
+source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
 ```

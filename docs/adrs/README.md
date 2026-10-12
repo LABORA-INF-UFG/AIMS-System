@@ -1,69 +1,72 @@
 # Architectural Decision Records (ADRs)
 
-Este diretório contém os **Architectural Decision Records** do projeto AIMS-System.
+This directory holds the **Architectural Decision Records** of the AIMS-System project.
 
-ADRs documentam decisões arquiteturais significativas — o contexto que as motivou, as alternativas consideradas e as consequências esperadas. O formato adotado é o [MADR (Markdown Any Decision Records)](https://adr.github.io/madr/).
+ADRs document significant architectural decisions: the context that motivated them, the alternatives considered and the expected consequences. The format is [MADR (Markdown Any Decision Records)](https://adr.github.io/madr/).
 
-## Status possíveis
+## Possible statuses
 
-| Status | Significado |
-|--------|-------------|
-| `Proposed` | Decisão proposta, aguardando revisão |
-| `Accepted` | Decisão aprovada e em vigor |
-| `Deprecated` | Decisão substituída por outra mais recente |
-| `Superseded by ADR-XXXX` | Substituída por um ADR específico |
+| Status | Meaning |
+|--------|---------|
+| `Proposed` | Decision proposed, awaiting review |
+| `Accepted` | Decision approved and in force |
+| `Deprecated` | Decision no longer applies |
+| `Superseded by ADR-XXXX` | Replaced by a specific ADR |
 
-## Índice
+## Index
 
-| ADR | Título | Status | Data |
-|-----|--------|--------|------|
-| [ADR-0001](./ADR-0001-docker-compose-para-orquestracao.md) | Adoção de Docker Compose para Orquestração da Stack | Accepted | 2026-06-17 |
-| [ADR-0002](./ADR-0002-ros2-humble-como-versao-alvo.md) | ROS2 Humble como Versão Alvo do Sistema | Accepted | 2026-06-17 |
-| [ADR-0003](./ADR-0003-host-networking-para-ros2-dds.md) | Host Networking para Serviços ROS2 no Docker | Accepted | 2026-06-17 |
-| [ADR-0004](./ADR-0004-rosbridge-como-camada-de-integracao-web-ros2.md) | Rosbridge como Camada de Integração entre ROS2 e Web | Accepted | 2026-06-17 |
-| [ADR-0005](./ADR-0005-tailwindcss-v4-como-framework-de-estilizacao.md) | TailwindCSS v4 como Framework de Estilização da Interface Web | Accepted | 2026-06-17 |
+| ADR | Title | Status | Date |
+|-----|-------|--------|------|
+| [ADR-0001](./ADR-0001-docker-compose-for-orchestration.md) | Docker Compose for Stack Orchestration | Accepted | 2026-06-17 |
+| [ADR-0002](./ADR-0002-ros2-humble-as-target-version.md) | ROS2 Humble as the Target Version | Accepted | 2026-06-17 |
+| [ADR-0003](./ADR-0003-host-networking-for-ros2-dds.md) | Host Networking for ROS2 Services in Docker | Superseded by ADR-0008 | 2026-06-17 |
+| [ADR-0004](./ADR-0004-rosbridge-as-web-ros2-integration-layer.md) | Rosbridge as the Integration Layer between ROS2 and the Web | Accepted | 2026-06-17 |
+| [ADR-0005](./ADR-0005-tailwindcss-v4-as-styling-framework.md) | TailwindCSS v4 as the Styling Framework of the Web Interface | Accepted | 2026-06-17 |
+| [ADR-0006](./ADR-0006-remove-mongodb-and-patient-management.md) | Remove MongoDB and Patient Management; Subjects Identified by a Free-Text ID | Accepted | 2026-10-12 |
+| [ADR-0007](./ADR-0007-picoscenes-on-host-explicit-csi-source.md) | PicoScenes Stays on the Host; Explicit CSI Source Selection | Accepted | 2026-10-12 |
+| [ADR-0008](./ADR-0008-bridge-networking-as-default.md) | Bridge Networking as Default; Host Networking as an Opt-in Override | Accepted | 2026-10-12 |
 
-## Como criar um novo ADR
+## How to create a new ADR
 
-1. Crie um arquivo seguindo o padrão `ADR-XXXX-titulo-em-kebab-case.md`
-2. Use o template abaixo como base
-3. Atualize este índice
+1. Create a file named `ADR-XXXX-title-in-kebab-case.md`
+2. Use the template below as a base
+3. Update this index
 
 ### Template
 
 ```markdown
-# ADR-XXXX: Título da Decisão
+# ADR-XXXX: Decision Title
 
 - **Status**: Proposed | Accepted | Deprecated | Superseded by ADR-XXXX
-- **Data**: YYYY-MM-DD
-- **Decisores**: [nomes ou times envolvidos]
-- **Contexto técnico**: [breve descrição do contexto]
+- **Date**: YYYY-MM-DD
+- **Deciders**: [names or teams involved]
+- **Technical context**: [short description of the context]
 
 ---
 
-## Contexto
+## Context
 
-[Descreva o problema ou necessidade que motivou a decisão.]
+[Describe the problem or need that motivated the decision.]
 
-## Decisão
+## Decision
 
-[Descreva a decisão tomada de forma clara e objetiva.]
+[Describe the decision clearly and objectively.]
 
-## Alternativas Consideradas
+## Alternatives Considered
 
-| Alternativa | Motivo de descarte |
+| Alternative | Why it was rejected |
 |---|---|
-| Alternativa A | ... |
-| Alternativa B | ... |
+| Alternative A | ... |
+| Alternative B | ... |
 
-## Consequências
+## Consequences
 
-### Positivas
+### Positive
 - ...
 
-### Negativas / Trade-offs
+### Negative / Trade-offs
 - ...
 
-## Links Relacionados
-- [ADR-XXXX](./ADR-XXXX-...) — Título
+## Related Links
+- [ADR-XXXX](./ADR-XXXX-...) — Title
 ```

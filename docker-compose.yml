@@ -4,8 +4,7 @@
 # Services:
 #   ros2-nodes  — ROS2 processing nodes (CSI publisher, breath estimator, etc.)
 #   rosbridge   — WebSocket bridge between ROS2 DDS and web frontend
-#   web         — Express.js web server (patient management + monitoring UI)
-#   mongo       — MongoDB for patient data persistence
+#   web         — Express.js web server (monitoring UI)
 #
 # Usage:
 #   docker compose up -d          # Start all services
@@ -41,9 +40,6 @@ services:
     volumes:
       - captures:/app/Capturas
       - ./models:/app/models:ro
-    depends_on:
-      mongo:
-        condition: service_started
     restart: unless-stopped
     command: ["ros2", "launch", "csi", "aims_launch.py"]
 
@@ -74,8 +70,8 @@ services:
 
   # ---------------------------------------------------------------------------
   # Web Server (Express.js)
-  # Patient management UI and monitoring dashboard.
-  # Connects to MongoDB for persistence and rosbridge via WebSocket.
+  # Monitoring dashboard.
+  # Connects to rosbridge via WebSocket.
   # ---------------------------------------------------------------------------
   web:
     image: aims-system-web:latest
@@ -88,29 +84,10 @@ services:
     env_file: .env
     environment:
       - NODE_ENV=${NODE_ENV:-development}
-      - MONGO_URI=${MONGO_URI:-mongodb://mongo:27017/mycaredb}
       - WEB_PORT=3001
-    depends_on:
-      mongo:
-        condition: service_started
-    restart: unless-stopped
-
-  # ---------------------------------------------------------------------------
-  # MongoDB
-  # Persistent storage for patient data.
-  # ---------------------------------------------------------------------------
-  mongo:
-    image: mongo:7
-    container_name: aims-mongo
-    volumes:
-      - mongo_data:/data/db
-    ports:
-      - "27017:27017"
     restart: unless-stopped
 
 # Named volumes for data persistence across container restarts
 volumes:
-  mongo_data:
-    driver: local
   captures:
     driver: local

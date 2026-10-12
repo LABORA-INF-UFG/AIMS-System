@@ -401,11 +401,17 @@ form.addEventListener('submit', (event) => {
 
   console.log("Botao apertado")
   if (form.btn_status.value === '0'){
+    // The subject ID becomes part of the capture file name
+    const subject_id = form.subject_id.value.trim();
+    const subject_id_valid = /^[A-Za-z0-9_-]+$/.test(subject_id);
+    document.getElementById('subject_id_error').style.display = subject_id_valid ? 'none' : 'block';
+    if (!subject_id_valid) return;
+
     num_frames = Number(form.num_frames.value);
 
     let request_message = new ROSLIB.Message({
       nome_coleta: form.nome_coleta.value,
-      nome_paciente: selected_patient, //variável criada em monitoring.html
+      nome_paciente: subject_id,
       modelo_nic_rx: 'Intel 5300',
       modelo_nic_tx: 'Intel 5300',
       posicao_paciente: form.posicao_paciente.value,

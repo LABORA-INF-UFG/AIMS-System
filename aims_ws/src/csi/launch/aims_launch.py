@@ -5,40 +5,47 @@ Launches all ROS2 processing nodes for the AIMS system.
 PicoScenes and the web server are NOT started here — they run
 as separate containers (or on the host for PicoScenes).
 
-If PicoScenes is installed on the system, the real CSI publisher is used.
-Otherwise, the mock publisher is launched for development/testing.
+The CSI source comes from the csi_source argument (default: $CSI_SOURCE,
+else 'mock'): 'picoscenes' runs the UDP publisher fed by PicoScenes on the
+host; anything else runs the mock publisher.
 
 Usage:
-    ros2 launch csi aims_launch.py
+    ros2 launch csi aims_launch.py [csi_source:=mock|picoscenes]
 """
 
 from launch import LaunchDescription
-from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
-import shutil
 
 
 def generate_launch_description():
-    has_picoscenes = str(shutil.which('PicoScenes') is not None)
-    no_picoscenes = str(shutil.which('PicoScenes') is None)
+    use_picoscenes = PythonExpression(["'", LaunchConfiguration('csi_source'), "' == 'picoscenes'"])
 
     return LaunchDescription([
-        # CSI Publisher (real — only when PicoScenes is available on this machine)
+        DeclareLaunchArgument(
+            'csi_source',
+            default_value=EnvironmentVariable('CSI_SOURCE', default_value='mock'),
+            description="CSI input: 'mock' (recorded frame) or 'picoscenes' (UDP from host)",
+        ),
+
+        # CSI Publisher (real — CSI_SOURCE=picoscenes)
         Node(
             package='csi',
             executable='csi_publisher',
             name='csi_publisher',
             output='screen',
-            condition=IfCondition([has_picoscenes]),
+            condition=IfCondition(use_picoscenes),
         ),
 
-        # CSI Publisher (mock — when PicoScenes is NOT available)
+        # CSI Publisher (mock — default)
         Node(
             package='csi',
             executable='mock_csi',
             name='mock_csi_publisher',
             output='screen',
-            condition=IfCondition([no_picoscenes]),
+            condition=UnlessCondition(use_picoscenes),
         ),
 
         # Breath estimation from CSI data

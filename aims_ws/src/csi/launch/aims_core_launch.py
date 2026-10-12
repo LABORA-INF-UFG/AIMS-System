@@ -5,36 +5,42 @@ Launches only the essential nodes: CSI publisher (real or mock)
 and breath estimator. Use this for lightweight testing scenarios.
 
 Usage:
-    ros2 launch csi aims_core_launch.py
+    ros2 launch csi aims_core_launch.py [csi_source:=mock|picoscenes]
 """
 
 from launch import LaunchDescription
-from launch.conditions import IfCondition
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
-import shutil
 
 
 def generate_launch_description():
-    has_picoscenes = str(shutil.which('PicoScenes') is not None)
-    no_picoscenes = str(shutil.which('PicoScenes') is None)
+    use_picoscenes = PythonExpression(["'", LaunchConfiguration('csi_source'), "' == 'picoscenes'"])
 
     return LaunchDescription([
-        # Mock CSI publisher (when PicoScenes is NOT available)
+        DeclareLaunchArgument(
+            'csi_source',
+            default_value=EnvironmentVariable('CSI_SOURCE', default_value='mock'),
+            description="CSI input: 'mock' (recorded frame) or 'picoscenes' (UDP from host)",
+        ),
+
+        # Mock CSI publisher (default)
         Node(
             package='csi',
             executable='mock_csi',
             name='mock_csi_publisher',
             output='screen',
-            condition=IfCondition([no_picoscenes]),
+            condition=UnlessCondition(use_picoscenes),
         ),
 
-        # Real CSI publisher (when PicoScenes IS available)
+        # Real CSI publisher (CSI_SOURCE=picoscenes)
         Node(
             package='csi',
             executable='csi_publisher',
             name='csi_publisher',
             output='screen',
-            condition=IfCondition([has_picoscenes]),
+            condition=IfCondition(use_picoscenes),
         ),
 
         # Breath estimation from CSI data

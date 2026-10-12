@@ -107,22 +107,17 @@ function setIs_person(issuer, status) {
   }
 }
 
+// Single place that decides between the "Subject not detected" card and the
+// vitals. '' restores the stylesheet display (block / grid): 'inline' breaks both.
 function toggle_no_person_div(){
-  const no_person_div = document.getElementById('no_person_div');
-  const results_div = document.getElementById('results-container');
-  const debug = document.getElementById('debug').checked;
-  
-  if(debug || is_person && !equipments.none){
-    no_person_div.style.display = 'none'
-    results_div.style.display = 'inline'
-  }
-  else{
-    no_person_div.style.display = 'inline'
-    results_div.style.display = 'none'
-  }
+  const show_results = document.getElementById('debug').checked || (is_person && !equipments.none);
+  document.getElementById('no_person_div').style.display = show_results ? 'none' : '';
+  document.getElementById('results-container').style.display = show_results ? '' : 'none';
 }
 
+toggle_no_person_div();
 setInterval(toggle_no_person_div, 2000);
+document.getElementById('debug').addEventListener('change', toggle_no_person_div);
 
 
 listenerThereIsPerson.subscribe((message)=>{
@@ -341,8 +336,6 @@ listenerBR.subscribe(function(message) {
 
   if(is_person){
     document.getElementById('loading').style.display = 'none';
-    document.getElementById("results-container").style.display = 'inline';
-    //document.getElementById('results').style.display = 'inline';
     let brValue = document.getElementById('br_value');
 
     if (decoded.apnea_detected == 1){

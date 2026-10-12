@@ -1,0 +1,25 @@
+# =============================================================================
+# AIMS-System Compose override: host networking (Linux only)
+#
+# Use only for distributed multi-machine ROS2 setups, where other machines on
+# the LAN must discover the containers' DDS participants:
+#   docker compose -f docker-compose.yml -f docker-compose.hostnet.yml up -d
+#
+# The default docker-compose.yml uses a bridge network, which also works on
+# Docker Desktop (Windows/macOS). Host networking does not work there.
+# Requires Docker Compose >= 2.24 (`!reset`).
+# =============================================================================
+
+services:
+  ros2-nodes:
+    network_mode: host
+    ipc: host
+    ports: !reset []
+
+  rosbridge:
+    network_mode: host
+    ipc: host
+    ports: !reset []
+    command: ["ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml", "port:=${ROSBRIDGE_PORT:-9090}"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/${ROSBRIDGE_PORT:-9090}"]

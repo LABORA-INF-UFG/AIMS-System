@@ -10,7 +10,8 @@ web/install/
 web/node_modules/
 
 # CSI captures
-captures/
+captures/*
+!captures/.gitkeep
 
 # Python
 __pycache__

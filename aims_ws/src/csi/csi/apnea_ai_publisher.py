@@ -57,6 +57,14 @@ class ApneaAIPublisher(Node):
 def main(args=None):
     rclpy.init(args=args)
 
+    model_path = os.getenv('KERAS_APNEA_MODEL', '')
+    if not os.path.isfile(model_path):
+        rclpy.logging.get_logger('apnea_ai_publisher').warning(
+            f'Apnea model not found at KERAS_APNEA_MODEL="{model_path}"; apnea AI node disabled. '
+            'Put the .h5 file in ./models (see models/README.md).')
+        rclpy.shutdown()
+        return
+
     apnea_ai_publisher = ApneaAIPublisher()
     executor = MultiThreadedExecutor()
     executor.add_node(apnea_ai_publisher)

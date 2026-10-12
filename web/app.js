@@ -16,6 +16,11 @@ app.use(express.json());
 // Routes
 app.use(monitoringRoutes);
 
+// Runtime config for the browser (rosbridge runs on the same host as this page)
+app.get('/config', (req, res) => {
+    res.json({ rosbridgePort: Number(process.env.ROSBRIDGE_PORT) || 9090 });
+});
+
 const server = app.listen(PORT, () => {
     console.log(`AIMS Web Server started at http://localhost:${PORT}`);
 });

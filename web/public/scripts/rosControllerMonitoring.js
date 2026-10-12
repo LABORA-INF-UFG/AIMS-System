@@ -46,8 +46,12 @@ ros.on('close', function() {
   document.getElementById('connecting').style.display = 'none';
 });
 
-// Create a connection to the rosbridge WebSocket server.
-ros.connect('ws://localhost:9090');
+// Create a connection to the rosbridge WebSocket server on the host that served
+// this page (so it also works from other machines on the LAN). Port comes from /config.
+fetch('/config')
+  .then((res) => res.json())
+  .then((cfg) => cfg.rosbridgePort, () => 9090)
+  .then((port) => ros.connect(`ws://${window.location.hostname}:${port || 9090}`));
 
 // AIMS Vision person detection
 let listenerThereIsPerson = new ROSLIB.Topic({

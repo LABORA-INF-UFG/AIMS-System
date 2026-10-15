@@ -80,7 +80,7 @@ let is_moving = false;
 setInterval(() => {
   ros.getNodes((res) => {
     //console.log(res)
-    if(searchStringInArray('/Pose_Estimation', res) != -1){
+    if(searchStringInArray('/pose_estimation', res) != -1){
       equipments.camera = true;
       equipments.none = false;
     }
@@ -168,11 +168,10 @@ listenerHeatmap.subscribe(function(message) {
 let listenerVisionCameraImage = new ROSLIB.Topic({
   ros: ros,
   name: '/vision_image',
-  messageType: 'sensor_msgs/msg/Image'
+  messageType: 'sensor_msgs/msg/CompressedImage'
 });
 listenerVisionCameraImage.subscribe((message)=>{
-  const img = 'data:image/png;base64,' + message.data; // TODO: adapt to the format sent by the Vision code
-  document.getElementById('img-camera-vision').src = img
+  document.getElementById('img-camera-vision').src = 'data:image/jpeg;base64,' + message.data;
 });
 
 //Subscribing to a Topic for the mmWave heatmap image

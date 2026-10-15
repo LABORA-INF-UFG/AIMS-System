@@ -68,6 +68,12 @@ class Visualization(Node):
         self.get_logger().info('visualization node started')
 
     def callback(self, points_msg, image_msg):
+        if len(points_msg.keypoints) != 17 or len(points_msg.confidence) != 17:
+            self.get_logger().warn(
+                f'Skipping malformed PoseKeypoints: {len(points_msg.keypoints)} keypoints, '
+                f'{len(points_msg.confidence)} confidences (expected 17)',
+                throttle_duration_sec=5.0)
+            return
         now = time.monotonic()
         due = now - self.last_publish >= self.period
         if not (due or self.show_window):

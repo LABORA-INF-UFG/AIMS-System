@@ -60,6 +60,12 @@ class Moving(Node):
     def callback_points(self, msg):
         if not self.is_person:
             return
+        if len(msg.keypoints) != 17 or len(msg.confidence) != 17:
+            self.get_logger().warn(
+                f'Skipping malformed PoseKeypoints: {len(msg.keypoints)} keypoints, '
+                f'{len(msg.confidence)} confidences (expected 17)',
+                throttle_duration_sec=5.0)
+            return
 
         stamp = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
         dt = DEFAULT_DT if self.last_stamp is None else stamp - self.last_stamp

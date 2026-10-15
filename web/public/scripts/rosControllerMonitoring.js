@@ -80,18 +80,10 @@ let is_moving = null; // null until the first /is_moving message
 setInterval(() => {
   ros.getNodes((res) => {
     //console.log(res)
-    if(searchStringInArray('/pose_estimation', res) != -1){
-      equipments.camera = true;
-      equipments.none = false;
-    }
-    if(searchStringInArray('/pkt_mmw_publisher', res) != -1){
-      equipments.mmwave = true;
-      equipments.none = false;
-    }
-    if(!equipments.mmwave && !equipments.camera){
-      equipments.none = true
-      console.log("Camera and mmWave disconnected.")
-    }
+    equipments.camera = searchStringInArray('/pose_estimation', res) != -1;
+    equipments.mmwave = searchStringInArray('/pkt_mmw_publisher', res) != -1;
+    equipments.none = !equipments.camera && !equipments.mmwave;
+    if(!equipments.camera) is_moving = null; // back to "Waiting for camera"
     
   });
 }, 5000);

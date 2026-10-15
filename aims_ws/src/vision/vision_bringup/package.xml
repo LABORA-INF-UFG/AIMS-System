@@ -13,7 +13,7 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>ros2launch</exec_depend>
   <exec_depend>pose_estimation</exec_depend>
-  <exec_depend>there_is_person</exec_depend>
+  <exec_depend>presence</exec_depend>
   <exec_depend>moving</exec_depend>
   <exec_depend>visualization</exec_depend>
 

@@ -22,7 +22,7 @@ Constraints:
 
 ## Decision
 
-1. **Import the packages into the monorepo** under `aims_ws/src/vision/` (`vision_interfaces`, `pose_estimation`, `there_is_person`, `moving`, `visualization`, `vision_bringup`). The import is a separate commit with the code as-is, so later changes stay readable against upstream. The legacy top-level `there_is_person` package (TensorFlow Lite) and its `.tflite` model were removed.
+1. **Import the packages into the monorepo** under `aims_ws/src/vision/` (`vision_interfaces`, `pose_estimation`, `presence` (imported as `there_is_person`), `moving`, `visualization`, `vision_bringup`). The import is a separate commit with the code as-is, so later changes stay readable against upstream. The legacy top-level `there_is_person` package (TensorFlow Lite) and its `.tflite` model were removed.
 
 2. **Run vision in its own image and service.** `docker/vision/Dockerfile` has a build argument `VISION_VARIANT` (`cpu` by default, or `cuda`). The service `vision` in `docker-compose.yml` sits behind the Compose profile `vision`, so `docker compose up -d --build` does not build or start it. It uses the same ROS 2 Humble base image, entrypoint and DDS profile as the core image, and joins the same bridge network and `ROS_DOMAIN_ID`.
 
@@ -40,13 +40,13 @@ Constraints:
 |---|---|---|
 | `/estimation_points` | `vision_interfaces/msg/PoseKeypoints` | reliable, volatile, depth 10 |
 | `/vision/image_raw` | `sensor_msgs/msg/Image` | best effort, depth 1 |
-| `/there_is_person` | `std_msgs/msg/Bool` | reliable, transient local, depth 1 |
+| `/person_present` | `std_msgs/msg/Bool` | reliable, transient local, depth 1 |
 | `/is_moving` | `std_msgs/msg/Bool` | reliable, transient local, depth 1 |
 | `/vision_image` | `sensor_msgs/msg/CompressedImage` (JPEG) | reliable, volatile, depth 1 |
 
    - The two Bool topics are latched (`transient_local`) and publish `false` at startup, so a dashboard that connects late gets the current state immediately.
    - `/vision_image` changed from `sensor_msgs/Image` to `CompressedImage`. The `visualization` node draws the overlay and encodes the JPEG (5 Hz, quality 70), so rosbridge sends a small message instead of a raw frame.
-   - Node names are snake_case. The dashboard detects the camera by the node `/pose_estimation`.
+   - Node names are snake_case. The upstream `there_is_person` package, node and topic were renamed `presence` and `/person_present` (a noun like the other packages, a state like `/is_moving`). The dashboard detects the camera by the node `/pose_estimation`.
 
 ## Alternatives Considered
 

@@ -11,7 +11,7 @@ Runs on CPU by default; a CUDA GPU (optionally with a TensorRT engine) is used w
 | --- | --- | --- |
 | `vision_interfaces` | - | `PoseKeypoints` message |
 | `pose_estimation` | `pose_estimation` | Reads the camera (or a looping video file), runs YOLOv8n-pose and publishes the keypoints of the largest person and the raw frame |
-| `there_is_person` | `there_is_person` | Decides whether a person is in the frame |
+| `presence` | `presence` | Decides whether a person is in the frame |
 | `moving` | `moving` | Tracks the body keypoints with Kalman filters and decides whether the person moves |
 | `visualization` | `visualization` | Draws the keypoints on the frame and publishes it as JPEG |
 | `vision_bringup` | - | `vision.launch.py` and `config/vision.yaml` |
@@ -22,13 +22,13 @@ Runs on CPU by default; a CUDA GPU (optionally with a TensorRT engine) is used w
 | --- | --- | --- | --- |
 | `/estimation_points` | `vision_interfaces/msg/PoseKeypoints` | reliable, volatile, depth 10 | `pose_estimation` |
 | `/vision/image_raw` | `sensor_msgs/msg/Image` (bgr8, same stamp as the keypoints) | best effort, depth 1 | `pose_estimation` (if `publish_image`) |
-| `/there_is_person` | `std_msgs/msg/Bool` | reliable, transient local (latched), depth 1 | `there_is_person` |
+| `/person_present` | `std_msgs/msg/Bool` | reliable, transient local (latched), depth 1 | `presence` |
 | `/is_moving` | `std_msgs/msg/Bool` | reliable, transient local (latched), depth 1 | `moving` |
 | `/vision_image` | `sensor_msgs/msg/CompressedImage` (jpeg) | reliable, volatile, depth 1 | `visualization` |
 
 Keypoints are the 17 COCO points (`nose`, `left_eye`, ..., `right_ankle`), x and y normalized
 to [0, 1]; a keypoint below `conf_threshold` is reported as (0, 0) with confidence 0.
-`/there_is_person` and `/is_moving` publish `false` at startup and then only on change.
+`/person_present` and `/is_moving` publish `false` at startup and then only on change.
 
 ## Parameters (`vision_bringup/config/vision.yaml`)
 
@@ -42,7 +42,7 @@ to [0, 1]; a keypoint below `conf_threshold` is reported as (0, 0) with confiden
 | | `conf_threshold` | 0.4 | Minimum keypoint confidence |
 | | `rate_hz` | 15 | Inference rate |
 | | `publish_image` | true | Publish `/vision/image_raw` |
-| `there_is_person` | `min_points` | 6 | Minimum detected body keypoints (shoulders to knees) |
+| `presence` | `min_points` | 6 | Minimum detected body keypoints (shoulders to knees) |
 | | `min_std` | 0.045 | Minimum spread of those keypoints on x and on y |
 | | `min_frames` | 4 | Consecutive frames that must disagree before presence changes |
 | `moving` | `velocity_threshold` | 0.15 | Keypoint speed (normalized units/s) counted as movement |

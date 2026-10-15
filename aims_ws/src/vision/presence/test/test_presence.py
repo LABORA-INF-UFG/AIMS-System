@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from there_is_person.presence import Hysteresis, is_person
+from presence.rule import Hysteresis, is_person
 
 NOT_DETECTED = (0.0, 0.0)
 

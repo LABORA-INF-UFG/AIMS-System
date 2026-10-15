@@ -14,7 +14,7 @@
 
 from setuptools import setup
 
-package_name = 'there_is_person'
+package_name = 'presence'
 
 setup(
     name=package_name,
@@ -34,7 +34,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'there_is_person = there_is_person.there_is_person:main',
+            'presence = presence.presence:main',
         ],
     },
 )

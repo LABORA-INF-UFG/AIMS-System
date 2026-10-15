@@ -36,7 +36,7 @@ class Moving(Node):
 
         self.publisher = self.create_publisher(Bool, '/is_moving', LATCHED)
         self.create_subscription(PoseKeypoints, '/estimation_points', self.callback_points, 10)
-        self.create_subscription(Bool, '/there_is_person', self.callback_person, LATCHED)
+        self.create_subscription(Bool, '/person_present', self.callback_person, LATCHED)
         self.is_person = False
         self.is_moving = False
         self.last_stamp = None

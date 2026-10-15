@@ -44,7 +44,7 @@ def generate_launch_description():
         Node(package='pose_estimation', executable='pose_estimation', name='pose_estimation',
              parameters=[config, overrides], output='screen',
              on_exit=Shutdown(reason='pose_estimation exited')),
-        Node(package='there_is_person', executable='there_is_person', name='there_is_person',
+        Node(package='presence', executable='presence', name='presence',
              parameters=[config], output='screen'),
         Node(package='moving', executable='moving', name='moving',
              parameters=[config], output='screen'),

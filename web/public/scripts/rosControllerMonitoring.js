@@ -59,13 +59,13 @@ fetch('/config')
   .then((port) => ros.connect(`ws://${window.location.hostname}:${port || 9090}`));
 
 // AIMS Vision person detection
-let listenerThereIsPerson = new ROSLIB.Topic({
+let listenerPersonPresent = new ROSLIB.Topic({
   ros: ros,
-  name: '/there_is_person',
+  name: '/person_present',
   messageType: 'std_msgs/msg/Bool'
 });
 
-// Updated by the there_is_person node; defaults to 'true'
+// Updated by the presence node; defaults to 'true'
 let is_person = true;
 let equipments = {
   camera: false,
@@ -132,8 +132,8 @@ setInterval(toggle_no_person_div, 2000);
 document.getElementById('debug').addEventListener('change', toggle_no_person_div);
 
 
-listenerThereIsPerson.subscribe((message)=>{
-  console.log('Received from /there_is_person: ' + String(message.data))
+listenerPersonPresent.subscribe((message)=>{
+  console.log('Received from /person_present: ' + String(message.data))
   if (message.data){
     setIs_person('camera', true)
   }

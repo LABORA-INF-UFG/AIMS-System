@@ -1,88 +1,94 @@
+# Copyright 2026 Lucas Reis
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import time
+
+import cv2
+from cv_bridge import CvBridge
+import message_filters
 import rclpy
 from rclpy.node import Node
-from interfaces.msg import ArticulationPoints
-from sensor_msgs.msg import Image
-import cv2
-import numpy as np
-import time
-from cv_bridge import CvBridge
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import CompressedImage, Image
+from vision_interfaces.msg import PoseKeypoints
+
+# Skeleton edges between COCO body keypoints (shoulders, elbows, wrists, hips, knees).
+EDGES = [
+    (5, 7), (7, 9), (6, 8), (8, 10),  # arms
+    (5, 11), (6, 12), (11, 13), (12, 14),  # torso sides and thighs
+    (5, 6), (11, 12),  # shoulders and hips
+]
+GREEN = (0, 255, 0)
+
+
+def draw_keypoints(frame, msg):
+    """Draw the detected body keypoints of msg and the skeleton lines on frame."""
+    height, width = frame.shape[:2]
+    points = {
+        i: (int(msg.keypoints[i].x * width), int(msg.keypoints[i].y * height))
+        for i in range(5, 15) if msg.confidence[i] > 0.0
+    }
+    for point in points.values():
+        cv2.circle(frame, point, 8, GREEN, -1)
+    for a, b in EDGES:
+        if a in points and b in points:
+            cv2.line(frame, points[a], points[b], GREEN, 2)
+    return frame
+
 
 class Visualization(Node):
+
     def __init__(self):
-        super().__init__('Visualization')
-        self.get_logger().info('Pose Etimation node initialized.')
-        self.Hz = 30
+        super().__init__('visualization')
+        self.period = 1.0 / self.declare_parameter('image_rate_hz', 5.0).value
+        self.jpeg_quality = self.declare_parameter('jpeg_quality', 70).value
+        self.show_window = self.declare_parameter('show_window', False).value
 
-        self.subscriber = self.create_subscription(ArticulationPoints, '/estimation_points', self.callback, self.Hz)
-        self.publisher_ = self.create_publisher(Image, 'visao_image', self.Hz)
-        
         self.bridge = CvBridge()
-        self.msg = Image()
-        self.frame = None
+        self.last_publish = 0.0
+        self.publisher = self.create_publisher(CompressedImage, '/vision_image', 1)
+        points_sub = message_filters.Subscriber(self, PoseKeypoints, '/estimation_points')
+        image_sub = message_filters.Subscriber(
+            self, Image, '/vision/image_raw',
+            qos_profile=QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+        # Frames and keypoints share the exact same header.stamp.
+        self.sync = message_filters.TimeSynchronizer([points_sub, image_sub], 10)
+        self.sync.registerCallback(self.callback)
+        self.get_logger().info('visualization node started')
 
-
-    def plot_lines(self, points, beginning, end, step, increment):
-        for i in range(beginning, end, step):
-                point1 = points[i]
-                point2 = points[i + increment]
-                
-                if point1[0] != 0 and point1[1] != 0 and point2[0] != 0 and point2[1] != 0:
-                    cv2.line(self.frame, point1, point2, (0, 255, 0), 2)
-
-    def callback(self, msg):
-
-        """
-        Function description.
-
-        This function receivs a message from the /estimation_points topic 
-        and aims to place the join points within the obtained frame.
-        
-        
-        Args:
-            msg (interfaces.msg.ArticulationPoints): Has the obtained a list
-            of points containing tuples with the join points
-            
-        Returns:
-            /visao_image (std_msgs.msg.Image): it publishes the frame in /visao_image 
-            topic
-
-        """
-
-        # Obtém o frame, a largura e a altura do quadro de captura
-        self.frame = self.bridge.imgmsg_to_cv2(msg.image, desired_encoding="bgr8")
-        
-        if self.frame is None:
+    def callback(self, points_msg, image_msg):
+        now = time.monotonic()
+        due = now - self.last_publish >= self.period
+        if not (due or self.show_window):
             return
-            
-        height = msg.image.height
-        width = msg.image.width
-        
 
-        points = []
-        size = len(msg.name)
-        for i in range(size):
-            if i >= 5 and i <= 14:
-                x, y = int(msg.coordinates[i].x * width), int(msg.coordinates[i].y * height)
-                
-                points.append((x,y))
-                if x != 0 or y != 0:
-                    # Desenha um círculo em cada ponto de referência na imagem original
-                    cv2.circle(self.frame, (x, y), 8, (0, 255, 0), -1)
+        frame = draw_keypoints(
+            self.bridge.imgmsg_to_cv2(image_msg, desired_encoding='bgr8'), points_msg)
 
-        # Traça as linhas entre os pontos da cabeça
-        #self.plot_lines(frame, points, 0, 4, 1, 1)
-        # Traça as linhas entre a parte esquerda do corpo
-        self.plot_lines(points, 0, len(points) - 2, 2, 2)
-        # Traça as linhas entre a parte direta do corpo
-        self.plot_lines(points, 1, len(points) -2 , 2, 2)
-        # Traça algumas linhas entre a parte direta-esquerda do corpo
-        self.plot_lines(points, 0, 7, 2, 1)
-        
-        image_msg = self.bridge.cv2_to_imgmsg(self.frame, encoding="bgr8")
-        self.publisher_.publish(image_msg)
+        if due:
+            self.last_publish = now
+            ok, jpeg = cv2.imencode(
+                '.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_quality])
+            if ok:
+                msg = CompressedImage(header=image_msg.header, format='jpeg')
+                msg.data = jpeg.tobytes()
+                self.publisher.publish(msg)
 
-        cv2.imshow('Pose Detection', self.frame)
-        cv2.waitKey(1)
+        if self.show_window:
+            cv2.imshow('Pose Detection', frame)
+            cv2.waitKey(1)
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -91,5 +97,6 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
 
-if __name__== '__main__':
+
+if __name__ == '__main__':
     main()

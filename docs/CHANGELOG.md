@@ -43,7 +43,7 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 - `/there_is_person` and `/is_moving` are latched and publish `false` at startup. The vision nodes run headless: the OpenCV window is opt-in (`show_window`, default `false`).
 - `pose_estimation` reads `device`, `camera`, `model_path` and the capture size from `vision.yaml` (launch arguments `device` and `camera` default to `$VISION_DEVICE` and `$VISION_CAMERA`); `camera` can be a looping video file.
 - The overlay is drawn by `visualization`, which publishes a JPEG `/vision_image` at 5 Hz.
-- Dashboard: the Camera tab renders the JPEG; plots are enabled by default; ground-truth rows appear only with Debug on; "Filling buffers" is a full-screen overlay until the first `/breath_estimate`.
+- Dashboard: the Camera tab renders the JPEG; plots are enabled by default; ground-truth rows appear only with Debug on; "Filling buffers" disappears on the first `/breath_estimate`, with or without a subject (it used to stay while no subject was detected).
 
 ### Removed
 - `apnea_ai` node, `ApneaDetectionAI.py` and TensorFlow/Keras from the core image (moved to `deprecated/apnea_ai/`; `custom_interfaces/msg/ApneaAI.msg` is kept).

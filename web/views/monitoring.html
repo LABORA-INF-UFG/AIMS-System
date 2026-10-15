@@ -174,7 +174,7 @@
               <nav class="flex flex-wrap gap-2" aria-label="Tabs" id="nav-tab">
                 <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg bg-primary text-white focus:outline-none cursor-pointer" id="nav-histogram-tab" data-target="nav-histogram">Histogram</button>
                 <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-heatmap-tab" data-target="nav-heatmap">Heatmap</button>
-                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-heatmap-mmw-tab" data-target="nav-heatmap-mmw">Position Map</button>
+                <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-heatmap-mmw-tab" data-target="nav-heatmap-mmw">MMWave Position Map <span class="ml-1 px-1.5 py-0.5 text-[10px] font-bold uppercase rounded bg-amber-100 text-amber-800">Experimental</span></button>
                 <button class="tab-btn px-4 py-2 text-sm font-semibold rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-50 focus:outline-none cursor-pointer" id="nav-camera-vision-tab" data-target="nav-camera-vision">Camera</button>
               </nav>
             </div>
@@ -197,6 +197,7 @@
 
               <!-- Pane: Position Map -->
               <div class="tab-pane hidden" id="nav-heatmap-mmw">
+                <p class="text-xs text-gray-500 text-center">Experimental: needs the mmWave radar (<code>mmw_talker</code>).</p>
                 <div class="flex flex-col items-center justify-center py-6">
                   <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3" id="loadingHeatmapMmW"></div>
                   <img id="heatmapMmWImg" class="rounded-xl border border-gray-200 max-h-[300px]" style="display: none;">

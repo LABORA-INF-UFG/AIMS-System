@@ -8,7 +8,7 @@
   <license>Apache License 2.0</license>
 
   <!--
-    Python dependencies are managed in aims_ws/src/requirements.txt.
+    Python dependencies are managed in requirements/core.in (locked in requirements/core.lock).
     The patched PicoScenes parser is built in docker/ros2/Dockerfile.
     Octave nodes are experimental and not included in the default build.
   -->

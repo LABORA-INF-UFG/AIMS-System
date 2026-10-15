@@ -32,3 +32,6 @@ docker-compose.yml
 # Large binary files
 *.h5
 *.tflite
+*.pt
+*.engine
+*.onnx

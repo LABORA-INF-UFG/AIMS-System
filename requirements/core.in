@@ -1,0 +1,11 @@
+scikit-learn
+numpy
+numba
+opencv-python-headless
+scipy
+pyserial
+matplotlib
+pynput
+# pynput pulls evdev on Linux; 1.7+ ships only an sdist that the setuptools of
+# Ubuntu 22.04 (59.x) cannot build, so stay on the last setup.py release.
+evdev<1.7

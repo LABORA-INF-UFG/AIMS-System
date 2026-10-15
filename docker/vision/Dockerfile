@@ -36,11 +36,14 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends python3-pip libgl1 libglib2.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
-# Python deps first: the largest layer, cached across source changes
+# Python deps first: the largest layer, cached across source changes.
+# The tensorrt sdist (cuda) otherwise runs a nested, unhashed pip install.
+# The _win builder resource (~1.4 GB) is Windows-only; rm -f is a no-op on cpu.
 ARG VISION_VARIANT=cpu
+ENV NVIDIA_TENSORRT_DISABLE_INTERNAL_PIP=1
 COPY requirements/vision-${VISION_VARIANT}.lock /tmp/vision.lock
 RUN pip3 install --no-cache-dir --require-hashes -r /tmp/vision.lock && \
-    rm /tmp/vision.lock
+    rm -f /tmp/vision.lock /usr/local/lib/python3.10/dist-packages/tensorrt_libs/libnvinfer_builder_resource_win*
 
 # ROS runtime deps of the vision packages (cv_bridge, message_filters, ...)
 COPY --from=builder /app/aims_ws/src/vision/ /tmp/vision_src/
@@ -64,6 +67,8 @@ RUN printf '#!/bin/bash\nexec /entrypoint.sh /opt/ros/%s/bin/ros2 "$@"\n' "$ROS_
 ENV RMW_IMPLEMENTATION=rmw_fastrtps_cpp
 ENV FASTRTPS_DEFAULT_PROFILES_FILE=/app/aims_ws/src/fastdds_profile.xml
 ENV ROS_DOMAIN_ID=5
+# No ultralytics network calls (DNS probe, pip auto-install, update check, telemetry)
+ENV YOLO_OFFLINE=1
 
 # models/vision/yolov8n-pose.pt (and the exported .engine) are mounted here
 VOLUME ["/app/models"]

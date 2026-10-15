@@ -75,10 +75,7 @@ RUN apt-get update && \
         python3-pip && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Python runtime dependencies. evdev (pynput on Linux) has no wheel, so
-# take the copy compiled in the builder instead of shipping a toolchain here.
-COPY --from=builder /usr/local/lib/python3.10/dist-packages/evdev /usr/local/lib/python3.10/dist-packages/evdev
-COPY --from=builder /usr/local/lib/python3.10/dist-packages/evdev-1.6.1.dist-info /usr/local/lib/python3.10/dist-packages/evdev-1.6.1.dist-info
+# Install Python runtime dependencies
 COPY requirements/core.lock /tmp/core.lock
 RUN pip3 install --no-cache-dir --require-hashes -r /tmp/core.lock && \
     rm /tmp/core.lock

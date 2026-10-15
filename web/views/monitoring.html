@@ -116,6 +116,13 @@
               <p class="text-sm opacity-90">Alert: breathing has stopped or dropped severely.</p>
             </div>
 
+            <!-- Movement indicator (camera + person present only) -->
+            <div id="movement_div" style="display:none;" class="flex items-center space-x-2">
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Movement</span>
+              <span id="movement_moving" style="display:none;" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200"><i class="bi bi-activity me-1"></i> Moving</span>
+              <span id="movement_still" style="display:none;" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200"><i class="bi bi-pause-circle-fill me-1"></i> Still</span>
+            </div>
+
             <!-- Vitals Displays -->
             <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
               

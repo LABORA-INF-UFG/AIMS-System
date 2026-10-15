@@ -68,6 +68,14 @@ let equipments = {
   none: true
 }
 
+// AIMS Vision movement detection (latched Bool)
+let listenerIsMoving = new ROSLIB.Topic({
+  ros: ros,
+  name: '/is_moving',
+  messageType: 'std_msgs/msg/Bool'
+});
+let is_moving = false;
+
 // Check whether the vision and mmWave nodes are connected
 setInterval(() => {
   ros.getNodes((res) => {
@@ -113,6 +121,12 @@ function toggle_no_person_div(){
   const show_results = document.getElementById('debug').checked || (is_person && !equipments.none);
   document.getElementById('no_person_div').style.display = show_results ? 'none' : '';
   document.getElementById('results-container').style.display = show_results ? '' : 'none';
+
+  // Movement pill: only meaningful while the camera sees a person
+  const show_movement = equipments.camera && is_person;
+  document.getElementById('movement_div').style.display = show_movement ? '' : 'none';
+  document.getElementById('movement_moving').style.display = is_moving ? '' : 'none';
+  document.getElementById('movement_still').style.display = is_moving ? 'none' : '';
 }
 
 toggle_no_person_div();
@@ -128,6 +142,11 @@ listenerThereIsPerson.subscribe((message)=>{
   else{
     setIs_person('camera', false)
   }
+});
+
+listenerIsMoving.subscribe((message)=>{
+  is_moving = message.data;
+  toggle_no_person_div();
 });
 
 //Subscribing to a Topic for the heatmap image

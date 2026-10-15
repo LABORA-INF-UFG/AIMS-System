@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import sys
 
 import cv2
 from cv_bridge import CvBridge
@@ -93,7 +92,6 @@ class PoseEstimation(Node):
             Image, '/vision/image_raw',
             QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
         self.failed_reads = 0
-        self.fatal = False
         self.timer = self.create_timer(1.0 / rate_hz, self.run_inference)
 
     def read_frame(self):
@@ -115,8 +113,9 @@ class PoseEstimation(Node):
             if self.failed_reads >= MAX_FAILED_READS:
                 self.get_logger().error(
                     f'{self.failed_reads} consecutive camera read failures, exiting')
-                self.fatal = True
-                rclpy.shutdown()
+                # rclpy.shutdown() from this callback left the process hanging in testing,
+                # so leave hard; the launch then shuts down and Docker restarts the container.
+                os._exit(1)
             return
         self.failed_reads = 0
 
@@ -157,9 +156,7 @@ def main(args=None):
     node = PoseEstimation()
     rclpy.spin(node)
     node.destroy_node()
-    rclpy.try_shutdown()
-    if node.fatal:
-        sys.exit(1)
+    rclpy.shutdown()
 
 
 if __name__ == '__main__':

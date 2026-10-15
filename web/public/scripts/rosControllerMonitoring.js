@@ -37,11 +37,16 @@ ros.on('error', function(error) {
 // Find out exactly when we made a connection.
 ros.on('connection', function() {
   console.log('Connection made!!');
+  breathBtn.disabled = false;
   document.getElementById('error').style.display = 'none';
   document.getElementById('connecting').style.display = 'none';
 });
 
+const breathBtn = document.getElementById('breath_btn');
+breathBtn.disabled = true;
+
 ros.on('close', function() {
+  breathBtn.disabled = true;
   //console.log('Connection closed.');
   document.getElementById('connecting').style.display = 'none';
 });
@@ -283,6 +288,11 @@ let listenerBreathControl = new ROSLIB.Topic({
     ros : ros,
     name : '/breath_control',
     messageType : 'custom_interfaces/msg/BreathControl'
+});
+
+// Operator annotation: one message per exhale; the listener below receives it back
+breathBtn.addEventListener('click', () => {
+  listenerBreathControl.publish({ timestamp: Date.now() * 1000000 });
 });
 
 let breath_buffer = []

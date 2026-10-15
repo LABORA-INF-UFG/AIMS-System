@@ -25,6 +25,8 @@ ADRs document significant architectural decisions: the context that motivated th
 | [ADR-0006](./ADR-0006-remove-mongodb-and-patient-management.md) | Remove MongoDB and Patient Management; Subjects Identified by a Free-Text ID | Accepted | 2026-10-12 |
 | [ADR-0007](./ADR-0007-picoscenes-on-host-explicit-csi-source.md) | PicoScenes Stays on the Host; Explicit CSI Source Selection | Accepted | 2026-10-12 |
 | [ADR-0008](./ADR-0008-bridge-networking-as-default.md) | Bridge Networking as Default; Host Networking as an Opt-in Override | Accepted | 2026-10-12 |
+| [ADR-0009](./ADR-0009-vision-subsystem-separate-image.md) | Vision Subsystem in the Monorepo, in Its Own Image Behind a Compose Profile | Accepted | 2026-10-15 |
+| [ADR-0010](./ADR-0010-deprecate-apnea-ai-and-tensorflow.md) | Deprecate the apnea_ai Node and Drop TensorFlow from the Core Image | Accepted | 2026-10-15 |
 
 ## How to create a new ADR
 

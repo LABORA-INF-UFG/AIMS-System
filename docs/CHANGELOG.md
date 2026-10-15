@@ -9,6 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Vision integration (MyCareBed pipeline), a much smaller core image and locked dependencies. See [ADR-0009](./adrs/ADR-0009-vision-subsystem-separate-image.md) and [ADR-0010](./adrs/ADR-0010-deprecate-apnea-ai-and-tensorflow.md).
+
+### Breaking changes
+
+| Kind | Old | New |
+|---|---|---|
+| ROS executable | `ros2 run csi apnea_ai` (topic `/apnea_ai`) | Removed; code moved to `deprecated/apnea_ai/` (restore steps in its README) |
+| Env variable | `KERAS_APNEA_MODEL` | Removed; read only by the deprecated node |
+| Package | `aims_ws/src/there_is_person` (TensorFlow Lite, executable `is_person`) | `aims_ws/src/vision/there_is_person` (keypoint rule on YOLOv8n-pose output) |
+| Model file | `resources/lite-model_movenet_singlepose_thunder_tflite_float16_4.tflite` | `models/vision/yolov8n-pose.pt` |
+| Topic type | `/vision_image` as `sensor_msgs/Image` | `sensor_msgs/CompressedImage` (JPEG) |
+| Topic QoS | `/there_is_person` volatile | reliable, `transient_local` (latched), also `/is_moving` |
+| Node name | `/Pose_Estimation` | `/pose_estimation` (the dashboard detects the camera by this name) |
+| Requirements | `aims_ws/src/requirements.txt` (unpinned, with TensorFlow) | `requirements/core.in` + hashed `requirements/core.lock`, with `requirements/constraints.txt` (`numpy<2`) |
+| Compose | `make down` = `docker compose down` | `docker compose --profile vision down`, so the vision container is stopped too |
+
+### Added
+- ROS 2 vision pipeline imported from MyCareBed into `aims_ws/src/vision/`: `vision_interfaces` (`PoseKeypoints.msg`), `pose_estimation` (YOLOv8n-pose; CPU by default, GPU with `device:=cuda:0`), `there_is_person`, `moving`, `visualization` and `vision_bringup` (`launch/vision.launch.py`, `config/vision.yaml`). Topics: `/estimation_points`, `/vision/image_raw`, `/there_is_person`, `/is_moving`, `/vision_image`. See [aims_ws/src/vision/README.md](../aims_ws/src/vision/README.md).
+- Unit tests for the presence rule and the keypoint Kalman filter.
+- `docker/vision/Dockerfile` with `VISION_VARIANT=cpu|cuda`; service `vision` behind the Compose profile `vision` in `docker-compose.yml` and `docker-compose.hostnet.yml`.
+- `docker-compose.gpu.yml`: vision on an NVIDIA GPU (PyTorch cu124, TensorRT 10.7; tested on a GTX 1650, Turing).
+- `make up-vision` and `make up-vision-gpu`.
+- Variables `VISION_DEVICE`, `VISION_CAMERA` and `VISION_VIDEO_DEVICE` (see `.env.example`). Without a camera, `VISION_VIDEO_DEVICE=/dev/null` and `VISION_CAMERA=/app/captures/<file>.mp4` replay a video file.
+- `models/vision/yolov8n-pose.pt` and `scripts/vision/export_tensorrt.sh` (optional TensorRT engine, run inside the `:cuda` image).
+- `requirements/`: `core.in`/`core.lock`, `core-build.in`/`core-build.lock`, `constraints.txt` and `vision-cpu|cuda.in`/`.lock`, all with hashes (`pip --require-hashes`).
+- Dashboard: movement pill (Moving / Still, "Waiting for camera" until the first `/is_moving`).
+- `deprecated/apnea_ai/` with a README that explains how to restore the node.
+- ADR-0009 and ADR-0010.
+
+### Changed
+- Core image size 12.2 GB to 2.15 GB (TensorFlow and CUDA wheels removed). The base image is pinned by digest and the build compiles only `csi` and `vision_interfaces`. Vision image sizes: CPU 4.1 GB, CUDA 16.7 GB.
+- `/there_is_person` and `/is_moving` are latched and publish `false` at startup. The vision nodes run headless: the OpenCV window is opt-in (`show_window`, default `false`).
+- `pose_estimation` reads `device`, `camera`, `model_path` and the capture size from `vision.yaml` (launch arguments `device` and `camera` default to `$VISION_DEVICE` and `$VISION_CAMERA`); `camera` can be a looping video file.
+- The overlay is drawn by `visualization`, which publishes a JPEG `/vision_image` at 5 Hz.
+- Dashboard: the Camera tab renders the JPEG; plots are enabled by default; ground-truth rows appear only with Debug on; "Filling buffers" is a full-screen overlay until the first `/breath_estimate`.
+
+### Removed
+- `apnea_ai` node, `ApneaDetectionAI.py` and TensorFlow/Keras from the core image (moved to `deprecated/apnea_ai/`; `custom_interfaces/msg/ApneaAI.msg` is kept).
+- `aims_ws/src/there_is_person` (legacy copy) and the MoveNet `.tflite` model.
+- `aims_ws/src/requirements.txt`.
+- `KERAS_APNEA_MODEL`.
+
+### Fixed
+- A wrong wrist-to-hip segment in the skeleton overlay.
+- Dashboard camera detection now looks for the renamed node `/pose_estimation` (it looked for `/Pose_Estimation`), so presence from the camera is taken into account again.
+- Dashboard rendered `/vision_image` as PNG with a TODO; it now decodes the JPEG.
+- A dashboard that connected after the vision nodes started never received the current presence state (`/there_is_person` was not latched).
+- Monitoring layout jumped when the movement indicator appeared and disappeared.
+
+### Known limitations
+- The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; tune `min_std` in `vision.yaml`.
+- The ground-truth tools `breath_control` (mouse clicks, `pynput`) and `heart_control` (a second camera filming a reference device) are not in the default launch and need a host with a GUI. `heart_control` also opens camera index 0, the same default as the vision node.
+- The Position Map tab shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar the tab keeps spinning.
+- The `:cuda` image was tested only on a Turing GPU. A TensorRT engine is specific to the GPU and the TensorRT version.
+
 ### Planned
 - Phase 3: ROS2 node refactoring (type hints, structured logging, separation of concerns)
 - Phase 4: CI/CD pipeline

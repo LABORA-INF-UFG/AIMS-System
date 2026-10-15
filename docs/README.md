@@ -17,7 +17,9 @@ docs/
     ├── ADR-0005-tailwindcss-v4-as-styling-framework.md
     ├── ADR-0006-remove-mongodb-and-patient-management.md
     ├── ADR-0007-picoscenes-on-host-explicit-csi-source.md
-    └── ADR-0008-bridge-networking-as-default.md
+    ├── ADR-0008-bridge-networking-as-default.md
+    ├── ADR-0009-vision-subsystem-separate-image.md
+    └── ADR-0010-deprecate-apnea-ai-and-tensorflow.md
 ```
 
 ## What each document is

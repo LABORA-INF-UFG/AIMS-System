@@ -116,6 +116,7 @@ function toggle_no_person_div(){
   document.getElementById('results-container').style.display = show_results ? '' : 'none';
   document.querySelectorAll('.ground-truth').forEach(el => el.style.display = debug ? '' : 'none');
 
+  document.getElementById('movement_div').style.display = show_results ? '' : 'none';
   document.getElementById('movement_waiting').style.display = is_moving === null ? '' : 'none';
   document.getElementById('movement_moving').style.display = is_moving === true ? '' : 'none';
   document.getElementById('movement_still').style.display = is_moving === false ? '' : 'none';

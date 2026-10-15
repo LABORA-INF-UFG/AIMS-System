@@ -2,7 +2,7 @@
 
 Deprecated on 2026-10-15. The node listened to the operator's mouse clicks with
 `pynput`, which needs a GUI session on the host and cannot see the mouse from inside a
-container. The dashboard now has a **Breath** button that publishes the same
+container. The dashboard now has a **Log exhale** button (Debug on) that publishes the same
 `/breath_control` message (`custom_interfaces/msg/BreathControl`, `timestamp` in ns)
 through rosbridge, so `persistence_action` still writes the `Breaths-` file.
 Removing it dropped `pynput` and `evdev` from the core image.

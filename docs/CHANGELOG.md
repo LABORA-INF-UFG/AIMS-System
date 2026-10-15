@@ -36,7 +36,7 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 - `models/vision/yolov8n-pose.pt` and `scripts/vision/export_tensorrt.sh` (optional TensorRT engine, run inside the `:cuda` image).
 - `requirements/`: `core.in`/`core.lock`, `core-build.in`/`core-build.lock`, `constraints.txt` and `vision-cpu|cuda.in`/`.lock`, all with hashes (`pip --require-hashes`).
 - Dashboard: movement pill (Moving / Still, "Waiting for camera" until the first `/is_moving`).
-- Dashboard: **Breath** button in the breathing-rate card. Each click publishes `/breath_control` (`custom_interfaces/msg/BreathControl`, timestamp in ns) through rosbridge; `persistence_action` still writes those events to the `Breaths-` capture file.
+- Dashboard: **Breathing ground truth** panel (Debug only) with a **Log exhale** button and a count of logged exhales. Each click publishes `/breath_control` (`custom_interfaces/msg/BreathControl`, timestamp in ns) through rosbridge; `persistence_action` still writes those events to the `Breaths-` capture file.
 - `docs/LICENSING.md` (TODO: open licensing decision) and `docs/ground-truth-topics.md` (proposal for new `*_control` ground-truth sources).
 - `deprecated/apnea_ai/` with a README that explains how to restore the node.
 - ADR-0009 and ADR-0010.
@@ -60,7 +60,7 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 - `pynput` and `evdev` from `requirements/core.in` / `core.lock`, and the `evdev` build from `docker/ros2/Dockerfile`.
 
 ### Deprecated
-- `breath_control` (mouse clicks, `pynput`, needed a GUI host) and `heart_control` (a second camera filming a reference device, OpenCV window): moved to `deprecated/breath_control/` and `deprecated/heart_control/` (restore steps in their READMEs); entry points removed from `aims_ws/src/csi/setup.py`. `BreathControl.msg` and `HeartControl.msg` were kept on purpose. The dashboard Breath button replaces `breath_control`.
+- `breath_control` (mouse clicks, `pynput`, needed a GUI host) and `heart_control` (a second camera filming a reference device, OpenCV window): moved to `deprecated/breath_control/` and `deprecated/heart_control/` (restore steps in their READMEs); entry points removed from `aims_ws/src/csi/setup.py`. `BreathControl.msg` and `HeartControl.msg` were kept on purpose. The dashboard **Log exhale** button (Breathing ground truth panel, Debug only) replaces `breath_control`.
 
 ### Fixed
 - A wrong wrist-to-hip segment in the skeleton overlay.

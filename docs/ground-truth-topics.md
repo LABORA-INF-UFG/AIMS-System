@@ -9,7 +9,7 @@ Ground truth is a reference measurement (heartbeats, breaths, vital signs) recor
 | Topic | Type (`custom_interfaces/msg`) | Content | Publisher today |
 |---|---|---|---|
 | `/heart_control` | `HeartControl` | `uint64 timestamp`: one message per heartbeat, wall-clock time in ns | `mock_heart_beat` only (1 per second, `time.time_ns()`) |
-| `/breath_control` | `BreathControl` | `uint64 timestamp`: one message per breath, ns | Dashboard **Breath** button (rosbridge, `Date.now() * 1000000`) |
+| `/breath_control` | `BreathControl` | `uint64 timestamp`: one message per breath, ns | Dashboard **Log exhale** button, Debug only (rosbridge, `Date.now() * 1000000`) |
 
 The old nodes `breath_control` (mouse clicks) and `heart_control` (second camera) are in `deprecated/`, see `deprecated/breath_control/README.md` and `deprecated/heart_control/README.md`. The message files were kept so new sources can reuse them.
 

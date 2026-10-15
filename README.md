@@ -146,7 +146,7 @@ When the first `/is_moving` arrives, the dashboard shows a movement pill (Moving
 
 **Limits to know about:**
 - The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; lower `min_std` in `aims_ws/src/vision/vision_bringup/config/vision.yaml`.
-- Ground truth: the dashboard **Breath** button publishes `/breath_control` on each exhale click. `/heart_control` has no publisher except `mock_heart_beat`, so the heart ground truth stays empty. The old `breath_control` and `heart_control` nodes are in `deprecated/`; to add a new source (Polar strap, ICU monitor) see [docs/ground-truth-topics.md](docs/ground-truth-topics.md) (proposal).
+- Ground truth: with Debug on, the dashboard **Log exhale** button (Breathing ground truth panel) publishes `/breath_control` on each click. `/heart_control` has no publisher except `mock_heart_beat`, so the heart ground truth stays empty. The old `breath_control` and `heart_control` nodes are in `deprecated/`; to add a new source (Polar strap, ICU monitor) see [docs/ground-truth-topics.md](docs/ground-truth-topics.md) (proposal).
 - The **MMWave Position Map** tab (Experimental) shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar the tab keeps spinning.
 
 ## Environment variables
@@ -219,7 +219,7 @@ File name:
 ```
 
 - Every component is sanitized: characters outside `A-Za-z0-9_-` become `_`, so there is no `:` and the names are valid on Windows.
-- Two extra files are written when something published on `/heart_control` / `/breath_control` during the capture (for example the dashboard Breath button or `mock_heart_beat`): the same name with the prefix `Heartbeats-` or `Breaths-`.
+- Two extra files are written when something published on `/heart_control` / `/breath_control` during the capture (for example the dashboard **Log exhale** button or `mock_heart_beat`): the same name with the prefix `Heartbeats-` or `Breaths-`.
 - Each line of the CSI file is the Python `str()` of a dictionary built from one `/pktcsi` message (`aims_ws/src/csi/csi/libs/CsiMsgToDict.py`). Heartbeat and breath files hold `{'timestamp', 'pktid'}` dictionaries.
 - `utils/AIMSAPI-py` holds helper functions for handling AIMS data; see its [README](utils/AIMSAPI-py/README.md).
 

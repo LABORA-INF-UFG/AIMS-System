@@ -24,7 +24,7 @@ docker run --rm --gpus all --entrypoint bash \
 
 The script exports with `int8=True` and `imgsz=320` and writes `models/vision/yolov8n-pose.engine`. Then start vision as usual with `make up-vision-gpu`.
 
-`.gitignore` does **not** list `*.engine`, so the file shows up in `git status`. Do not commit it: it works only on the GPU that built it.
+`.gitignore` ignores `*.engine`, `*.onnx` and `*.cache` under `models/`: an engine works only on the GPU and TensorRT version that built it, so it is never committed.
 
 ## Apnea detection model (no longer used)
 

@@ -291,8 +291,10 @@ let listenerBreathControl = new ROSLIB.Topic({
 });
 
 // Operator annotation: one message per exhale; the listener below receives it back
+let breath_count = 0;
 breathBtn.addEventListener('click', () => {
   listenerBreathControl.publish({ timestamp: Date.now() * 1000000 });
+  document.getElementById('breath_count').innerText = ++breath_count;
 });
 
 let breath_buffer = []

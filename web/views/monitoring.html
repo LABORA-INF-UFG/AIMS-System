@@ -131,10 +131,7 @@
               <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48 relative overflow-hidden">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Resp. rate</span>
-                  <span class="flex items-center space-x-2">
-                    <button type="button" id="breath_btn" aria-label="Annotate breath" title="Click on every exhale to annotate the breathing ground truth" class="px-3 py-1 text-xs font-semibold rounded-lg bg-primary text-white focus:outline-none cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">Breath</button>
-                    <span class="text-sky-500 text-xl" id="lung-beat" style="display: none;"><i class="bi bi-lungs-fill"></i></span>
-                  </span>
+                  <span class="text-sky-500 text-xl" id="lung-beat" style="display: none;"><i class="bi bi-lungs-fill"></i></span>
                 </div>
                 <div class="my-3 flex items-baseline space-x-1">
                   <span id="br_value" class="text-5xl font-black text-gray-900 tracking-tight">0</span>
@@ -162,6 +159,19 @@
                 </div>
               </div>
 
+            </div>
+
+            <!-- Breathing ground-truth annotation (Debug only): each click publishes /breath_control -->
+            <div style="display:none;" class="ground-truth bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Breathing ground truth</span>
+              <div class="mt-3 flex items-center gap-4">
+                <button type="button" id="breath_btn" class="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-base font-semibold rounded-xl bg-primary text-white shadow-sm hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"><i class="bi bi-lungs-fill" aria-hidden="true"></i> Log exhale</button>
+                <div class="text-right">
+                  <span id="breath_count" class="block text-2xl font-black text-gray-900">0</span>
+                  <span class="text-xs text-gray-500">logged</span>
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-gray-500">Click on every exhale of the subject. The rate over the last 30 s appears as Ground Truth in the Resp. rate card.</p>
             </div>
 
           </div>

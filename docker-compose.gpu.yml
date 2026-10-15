@@ -1,0 +1,27 @@
+# =============================================================================
+# AIMS-System Compose override: vision on an NVIDIA GPU
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml \
+#     --profile vision up -d --build
+#
+# Builds the CUDA image (PyTorch cu124 + TensorRT). The host needs only the
+# NVIDIA driver plus the NVIDIA Container Toolkit (Linux) or Docker Desktop
+# with WSL2 GPU support (Windows). Combine with docker-compose.hostnet.yml by
+# adding a third -f.
+# =============================================================================
+
+services:
+  vision:
+    image: aims-system-vision:cuda
+    build:
+      args:
+        VISION_VARIANT: cuda
+    environment:
+      VISION_DEVICE: ${VISION_DEVICE:-cuda:0}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

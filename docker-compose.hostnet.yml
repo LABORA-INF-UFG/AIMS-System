@@ -23,3 +23,7 @@ services:
     command: ["ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml", "port:=${ROSBRIDGE_PORT:-9090}"]
     healthcheck:
       test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/${ROSBRIDGE_PORT:-9090}"]
+
+  vision:
+    network_mode: host
+    ipc: host

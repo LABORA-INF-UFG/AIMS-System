@@ -5,12 +5,16 @@
 #   ros2-nodes  — ROS2 processing nodes (CSI publisher, breath estimator, etc.)
 #   rosbridge   — WebSocket bridge between ROS2 DDS and web frontend
 #   web         — Express.js web server (monitoring UI)
+#   vision      — optional camera pose estimation (profile "vision", YOLOv8n-pose)
 #
 # Usage (mock mode needs no .env and no other setup):
 #   docker compose up -d --build  # Build and start (http://localhost:3001)
 #   docker compose logs -f        # Follow all logs
-#   docker compose down           # Stop and remove containers
+#   docker compose --profile vision down   # Stop and remove containers
 #   CSI_SOURCE=picoscenes docker compose up -d   # Real PicoScenes frames
+#   docker compose --profile vision up -d --build  # Also start vision (CPU)
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml \
+#     --profile vision up -d --build               # Vision on an NVIDIA GPU
 #
 # Requires Docker Compose >= 2.24 (optional env_file via `required: false`).
 #
@@ -49,7 +53,6 @@ services:
       CSI_SOURCE: ${CSI_SOURCE:-mock}
       CSI_UDP_HOST: ${CSI_UDP_HOST:-0.0.0.0}
       CSI_UDP_PORT: ${CSI_UDP_PORT:-1025}
-      KERAS_APNEA_MODEL: ${KERAS_APNEA_MODEL:-/app/models/apenaDetection_AIMS_model1.h5}
       AIMS: /app
     ports:
       - "${CSI_UDP_PORT:-1025}:${CSI_UDP_PORT:-1025}/udp"
@@ -110,6 +113,41 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       WEB_PORT: 3001
       ROSBRIDGE_PORT: ${ROSBRIDGE_PORT:-9090}
+    depends_on:
+      rosbridge:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Vision (optional, profile "vision")
+  # Camera -> YOLOv8n-pose -> ROS 2 topics, CPU by default:
+  #   docker compose --profile vision up -d --build
+  # NVIDIA GPU: add -f docker-compose.gpu.yml (see that file).
+  # No /dev/video0 (Docker Desktop): map /dev/null instead and read a video
+  # file from ./captures:
+  #   VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/captures/clip.mp4 \
+  #     docker compose --profile vision up -d --build
+  # ---------------------------------------------------------------------------
+  vision:
+    image: aims-system-vision:cpu
+    build:
+      context: .
+      dockerfile: docker/vision/Dockerfile
+    container_name: aims-vision
+    profiles: ["vision"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *ros-env
+      VISION_DEVICE: ${VISION_DEVICE:-cpu}
+      VISION_CAMERA: ${VISION_CAMERA:-0}
+    devices:
+      - "${VISION_VIDEO_DEVICE:-/dev/video0}:/dev/video0"
+    volumes:
+      # Read-write: a TensorRT export writes yolov8n-pose.engine next to the .pt
+      - ./models:/app/models
+      - ./captures:/app/captures:ro
     depends_on:
       rosbridge:
         condition: service_started

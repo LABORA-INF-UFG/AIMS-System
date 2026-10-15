@@ -36,7 +36,6 @@ setup(
             'mmw_talker = csi.publisher_mmw:main',
             'heart_control = csi.heart_control_publisher:main',
             'csi_heatmap_publisher = csi.csi_heatmap_fig_publisher:main',
-            'apnea_ai = csi.apnea_ai_publisher:main',
             'breath_control = csi.breath_control_publisher:main',
             'mock_heart_beat = csi.mock_heart_beat:main',
             'octave_cardiofi = csi.octave_cardiofi_publisher:main',

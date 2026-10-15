@@ -19,8 +19,4 @@ def generate_launch_description():
             package='csi',
             executable='mock_csi',
         ),
-        Node(
-            package='csi',
-            executable='apnea_ai',
-        ),
     ])

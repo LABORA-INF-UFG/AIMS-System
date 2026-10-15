@@ -124,8 +124,8 @@ services:
   #   docker compose --profile vision up -d --build
   # NVIDIA GPU: add -f docker-compose.gpu.yml (see that file).
   # No /dev/video0 (Docker Desktop): map /dev/null instead and read a video
-  # file from ./captures:
-  #   VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/captures/clip.mp4 \
+  # file from ./videos:
+  #   VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/videos/clip.mp4 \
   #     docker compose --profile vision up -d --build
   # ---------------------------------------------------------------------------
   vision:
@@ -147,7 +147,10 @@ services:
     volumes:
       # Read-write: a TensorRT export writes yolov8n-pose.engine next to the .pt
       - ./models:/app/models
-      - ./captures:/app/captures:ro
+      # Test videos (camera replacement); ./captures is only for capture output
+      - ./videos:/app/videos:ro
+      # Edit vision.yaml on the host, then `docker compose restart vision` (no rebuild)
+      - ./aims_ws/src/vision/vision_bringup/config:/app/aims_ws/install/vision_bringup/share/vision_bringup/config:ro
     depends_on:
       rosbridge:
         condition: service_started

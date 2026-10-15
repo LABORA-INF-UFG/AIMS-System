@@ -13,6 +13,10 @@ web/node_modules/
 captures/*
 !captures/.gitkeep
 
+# Test videos for the vision service (camera replacement)
+videos/*
+!videos/.gitkeep
+
 # Python
 __pycache__
 *.pyc

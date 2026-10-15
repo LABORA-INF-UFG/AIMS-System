@@ -28,7 +28,7 @@ Constraints:
 
 3. **CPU by default, CUDA as an override.** `docker-compose.gpu.yml` switches the service to the `:cuda` image (PyTorch cu124 and TensorRT 10.7, from `requirements/vision-cuda.lock`), defaults `VISION_DEVICE` to `cuda:0` and reserves the NVIDIA device. The host needs only the NVIDIA driver plus the NVIDIA Container Toolkit (Linux) or Docker Desktop with WSL2 GPU support (Windows). A TensorRT engine is optional and is exported by `scripts/vision/export_tensorrt.sh` inside the `:cuda` image.
 
-4. **Camera or video file.** `VISION_VIDEO_DEVICE` (default `/dev/video0`) is mapped to `/dev/video0` in the container, and `VISION_CAMERA` is a device index or a video path. Without a camera, map `/dev/null` and point `VISION_CAMERA` at a file in `./captures`.
+4. **Camera or video file.** `VISION_VIDEO_DEVICE` (default `/dev/video0`) is mapped to `/dev/video0` in the container, and `VISION_CAMERA` is a device index or a video path. Without a camera, map `/dev/null` and point `VISION_CAMERA` at a file in `./videos` (mounted read-only, separate from the `./captures` output).
 
 5. **Host networking for a camera on another machine.** `docker-compose.hostnet.yml` also puts `vision` on the host network, as it does for `ros2-nodes` and `rosbridge`. The vision container can then run on the machine that has the camera.
 

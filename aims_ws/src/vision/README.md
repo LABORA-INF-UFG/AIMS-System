@@ -66,4 +66,6 @@ ros2 launch vision_bringup vision.launch.py device:=cpu camera:=0
 `device` defaults to `$VISION_DEVICE` and `camera` to `$VISION_CAMERA` (else `cpu` and `0`).
 Pass a video path as `camera` to test without a camera.
 
+Under Docker the `config/` folder is mounted over the installed copy: edit `vision.yaml`, then `docker compose restart vision`.
+
 For a TensorRT engine, run `scripts/vision/export_tensorrt.sh` once inside the `:cuda` image on the GPU machine that will use it (steps in [models/README.md](../../../models/README.md)). Under Docker, `make up-vision` (CPU) and `make up-vision-gpu` start the pipeline; see the root [README](../../../README.md#vision-camera-optional).

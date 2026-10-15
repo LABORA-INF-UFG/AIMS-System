@@ -2,7 +2,8 @@
 
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-WEIGHTS_DIR="$SCRIPT_DIR/weights/models"
+# Manual tool: run it on the GPU machine that will use the engine (TensorRT engines are not portable).
+WEIGHTS_DIR="$SCRIPT_DIR/../../models/vision"
 MODEL_PT="$WEIGHTS_DIR/yolov8n-pose.pt"
 
 echo "=== YOLOv8n-pose TensorRT Export Script ==="
@@ -47,7 +48,7 @@ python3 -c "from ultralytics import YOLO; model = YOLO('$MODEL_PT'); model.expor
 if [ -f "$WEIGHTS_DIR/yolov8n-pose.engine" ]; then
     echo "=== Success! ==="
     echo "Engine file created: $WEIGHTS_DIR/yolov8n-pose.engine"
-    echo "The pose_estimation node will now use this file for optimized inference."
+    echo "The pose_estimation node uses it when its device parameter is not 'cpu'."
 else
     echo "=== Export Failed ==="
     echo "Check the errors above. You might need to install more dependencies or check your GPU/TensorRT version."

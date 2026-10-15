@@ -1,50 +1,67 @@
-# AIMS Project
+# AIMS vision
 
-## Motion
+ROS 2 Humble packages that watch a person with a camera: YOLOv8n-pose estimates the body
+keypoints, then simple rules decide whether a person is in the frame and whether they move.
+Runs on CPU by default; a CUDA GPU (optionally with a TensorRT engine) is used when
+`device` is set to `cuda:0`.
 
-- [Pose Estimation README](pose_estimation/README.md)
-- [Visualization README](visualization/README.md)
-- [Moving README](moving/README.md)
-- [There is Person README](there_is_person/README.md)
+## Packages
 
-## Index
+| Package | Executable | Role |
+| --- | --- | --- |
+| `vision_interfaces` | - | `PoseKeypoints` message |
+| `pose_estimation` | `pose_estimation` | Reads the camera (or a looping video file), runs YOLOv8n-pose and publishes the keypoints of the largest person and the raw frame |
+| `there_is_person` | `there_is_person` | Decides whether a person is in the frame |
+| `moving` | `moving` | Tracks the body keypoints with Kalman filters and decides whether the person moves |
+| `visualization` | `visualization` | Draws the keypoints on the frame and publishes it as JPEG |
+| `vision_bringup` | - | `vision.launch.py` and `config/vision.yaml` |
 
-- [Introduction](#introduction)
-- [Features](#features)
-- [Usage](#usage)
+## Topics
 
-## Introduction
-This project aims to extract various information that can be obtained through framing a person in the camera. The project was built on the NVIDIA Jetson Nano board, although an original NVIDIA Jetpack was not used (due to the lack of new versions of the Jetpack for this embedded computer). Instead, the project utilizes the following project by the author **Q-engineering**, which offers a modified version of a Jetpack for Jetson: [Jetson_Nano_Ubuntu_20.04](https://github.com/Qengineering/Jetson-Nano-Ubuntu-20-image). The foundation of this project is built using TensorFlow and ROS2 and is currently capable of providing the following information:
+| Topic | Type | QoS | Publisher |
+| --- | --- | --- | --- |
+| `/estimation_points` | `vision_interfaces/msg/PoseKeypoints` | reliable, volatile, depth 10 | `pose_estimation` |
+| `/vision/image_raw` | `sensor_msgs/msg/Image` (bgr8, same stamp as the keypoints) | best effort, depth 1 | `pose_estimation` (if `publish_image`) |
+| `/there_is_person` | `std_msgs/msg/Bool` | reliable, transient local (latched), depth 1 | `there_is_person` |
+| `/is_moving` | `std_msgs/msg/Bool` | reliable, transient local (latched), depth 1 | `moving` |
+| `/vision_image` | `sensor_msgs/msg/CompressedImage` (jpeg) | reliable, volatile, depth 1 | `visualization` |
 
-- Detection of a person in the frame
-- Plotting the frame observed by the camera
-- Checking for movement performed by a person based solely on the points of the joints
+Keypoints are the 17 COCO points (`nose`, `left_eye`, ..., `right_ankle`), x and y normalized
+to [0, 1]; a keypoint below `conf_threshold` is reported as (0, 0) with confidence 0.
+`/there_is_person` and `/is_moving` publish `false` at startup and then only on change.
 
-It is also worth noting that we are using a lightweight version of TensorFlow to achieve better performance with lower computational costs. Currently, this project runs at about 8Hz on the aforementioned Jetson Nano.
+## Parameters (`vision_bringup/config/vision.yaml`)
 
-## Features
+| Node | Parameter | Default | Meaning |
+| --- | --- | --- | --- |
+| `pose_estimation` | `device` | `cpu` | `cpu` or `cuda:0` |
+| | `model_path` | `/app/models/vision/yolov8n-pose.pt` | On GPU, a `.engine` with the same stem next to it is used instead |
+| | `camera` | `"0"` | Device index or video file path (files loop) |
+| | `width`, `height`, `fps` | 352, 288, 30 | Real cameras only (V4L2, MJPG) |
+| | `imgsz` | 320 | Inference size |
+| | `conf_threshold` | 0.4 | Minimum keypoint confidence |
+| | `rate_hz` | 15 | Inference rate |
+| | `publish_image` | true | Publish `/vision/image_raw` |
+| `there_is_person` | `min_points` | 6 | Minimum detected body keypoints (shoulders to knees) |
+| | `min_std` | 0.045 | Minimum spread of those keypoints on x and on y |
+| `moving` | `velocity_threshold` | 0.15 | Keypoint speed (normalized units/s) counted as movement |
+| | `max_lost_frames` | 5 | Frames a missing keypoint keeps its track |
+| `visualization` | `image_rate_hz` | 5 | `/vision_image` rate |
+| | `jpeg_quality` | 70 | JPEG quality |
+| | `show_window` | false | Also show an OpenCV window |
 
-Each ROS2 package in the project has its functionality, and within them, there is a README.md explaining this functionality in detail. Here is a summary of each package:
+## Running
 
-| Package Name    | Description                                |
-| --------------- | ------------------------------------------ |
-| pose_estimation        | Main package. Loads the TensorFlow model and publishes the observed frame along with the detected joint points to a ROS2 topic.   |
-| visualization   | Upon receiving the topic from the "pose_estimation" package, it plots the observed frame.     |
-| there_is_person | Upon receiving the topic from the "pose_estimation" package, checks if there is a person in the frame and publishes this response on a ROS2 topic containing a boolean message.    |
-| moving          | Upon receiving the topic from the "pose_estimation" package, checks if the joint points observed in the current frame have produced movement compared to the previous frame.      |
-| bringup         | Package that stores the launch file     |
-| weights         | Directory that stores the weights of the TensorFlow lite  |
-| trt_interfaces  | Package that contains the custom ROS2 message for the topic of the "pose_estimation" package   |
-
-## Usage
-
-After cloning the ROS2 packages from this repository and executing the following commands:
+The model is `models/vision/yolov8n-pose.pt` in the repository, mounted at `/app/models`
+in the container. `ultralytics` and `torch` come from `requirements/vision-*.lock`
+(no rosdep key).
 
 ```bash
-colcon build --symlink-install
-source install/setup.bash
+colcon build && source install/setup.bash
+ros2 launch vision_bringup vision.launch.py device:=cpu camera:=0
 ```
-Execute the following ROS2 command to run the project:
 
-```bash
-ros2 launch bringup pose_estimation.launch.xml
+`device` defaults to `$VISION_DEVICE` and `camera` to `$VISION_CAMERA` (else `cpu` and `0`).
+Pass a video path as `camera` to test without a camera.
+
+For a TensorRT engine on a GPU machine, run `scripts/vision/export_tensorrt.sh` there once.

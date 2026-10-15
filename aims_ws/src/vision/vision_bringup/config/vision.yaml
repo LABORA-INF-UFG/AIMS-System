@@ -1,0 +1,30 @@
+# Parameters of the AIMS vision pipeline.
+# device and camera are overridden by the launch arguments of vision.launch.py.
+pose_estimation:
+  ros__parameters:
+    device: "cpu"            # "cpu" or "cuda:0"
+    model_path: "/app/models/vision/yolov8n-pose.pt"
+    camera: "0"              # device index (e.g. "0") or video file path
+    width: 352               # real cameras only
+    height: 288
+    fps: 30
+    imgsz: 320
+    conf_threshold: 0.4      # keypoints below this confidence are reported as not detected
+    rate_hz: 15.0
+    publish_image: true
+
+there_is_person:
+  ros__parameters:
+    min_points: 6
+    min_std: 0.045
+
+moving:
+  ros__parameters:
+    velocity_threshold: 0.15  # normalized image units per second
+    max_lost_frames: 5
+
+visualization:
+  ros__parameters:
+    image_rate_hz: 5.0
+    jpeg_quality: 70
+    show_window: false

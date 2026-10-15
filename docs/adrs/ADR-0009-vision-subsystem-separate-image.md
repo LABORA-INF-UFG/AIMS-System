@@ -53,7 +53,7 @@ Constraints:
 | Alternative | Why it was rejected |
 |---|---|
 | Keep MyCareBed in its own repository and only document how to run it | Two repositories to version, two sets of topic names to keep in sync, and no single `docker compose` entry point. A change in one repository could break the dashboard contract unnoticed. |
-| One image for everything, with CUDA for all | Every user, including mock-mode users without a camera or a GPU, would download and build the CUDA PyTorch stack (the CUDA image is 16.7 GB). It would also tie the core image to NVIDIA wheels. |
+| One image for everything, with CUDA for all | Every user, including mock-mode users without a camera or a GPU, would download and build the CUDA PyTorch stack (the CUDA image is 14.3 GB). It would also tie the core image to NVIDIA wheels. |
 | Build the vision image on an `nvidia/cuda` base image | Needs a second base distribution next to `ros:humble`, with ROS 2 installed on top. The PyTorch cu124 wheels already bundle the CUDA runtime, so the host needs only the driver. |
 | A separate Compose project (own file and own network) | Two commands to start and stop, and the user must align the network and `ROS_DOMAIN_ID` by hand. A profile keeps one project, one network and one `docker compose --profile vision down`. |
 | Put the vision dependencies in the core image | Core would grow from 2.15 GB to at least the size of the vision image for everyone, and the CUDA variant would still need its own image. |
@@ -69,7 +69,7 @@ Constraints:
 - The topic contracts are written down in one place, and the presence rule and the keypoint filter have unit tests.
 
 ### Negative / Trade-offs
-- Image sizes: vision CPU 4.1 GB, vision CUDA 16.7 GB. The first build of either is slow.
+- Image sizes: vision CPU 4.1 GB, vision CUDA 14.3 GB. The first build of either is slow.
 - The core and vision images share a base image but are built separately, so ROS packages are installed in both.
 - A TensorRT engine is specific to the GPU and the TensorRT version. It must be exported on the machine that uses it and is not portable.
 - The `:cuda` image was tested only on a Turing GPU (GTX 1650).

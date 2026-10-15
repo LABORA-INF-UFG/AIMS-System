@@ -40,7 +40,7 @@ If you use this software, please cite the article. Citation metadata for GitHub'
 │  ┌──────────────────────────────────────────────────────────────────────┐    │
 │  │ vision  (optional, profile "vision")                                 │    │
 │  │  camera/video ─► pose_estimation ─► /estimation_points               │    │
-│  │  there_is_person ─► /there_is_person      moving ─► /is_moving       │    │
+│  │  presence ─► /person_present              moving ─► /is_moving       │    │
 │  │  visualization ─► /vision_image (JPEG)                               │    │
 │  └──────────────────────────────────────────────────────────────────────┘    │
 │                      │ DDS (inside the bridge network)                       │
@@ -104,7 +104,7 @@ The vision pipeline runs in its own image behind the Compose profile `vision`, s
 |---|---|---|
 | `aims-system-ros2` (core) | 2.15 GB | `docker compose build` |
 | `aims-system-vision:cpu` | 4.1 GB | `docker compose --profile vision build` |
-| `aims-system-vision:cuda` | 16.7 GB | `docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile vision build` |
+| `aims-system-vision:cuda` | 14.3 GB | `docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile vision build` |
 
 **CPU** (default; needs a camera at `/dev/video0` on a Linux host):
 
@@ -120,13 +120,15 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile vision 
 
 The host needs the NVIDIA driver plus the NVIDIA Container Toolkit (Linux), or Docker Desktop with WSL2 GPU support (Windows). Optionally export a TensorRT engine for the GPU; see [models/README.md](models/README.md).
 
-**Video file instead of a camera** (Docker Desktop has no webcam; also useful for tests). Put a video in `./captures`, then map `/dev/null` in place of the camera device and point `VISION_CAMERA` at the file (it loops):
+**Video file instead of a camera** (Docker Desktop has no webcam; also useful for tests). Put a video in `./videos` (mounted read-only; `./captures` is only for capture output), then map `/dev/null` in place of the camera device and point `VISION_CAMERA` at the file (it loops):
 
 ```bash
-VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/captures/clip.mp4 docker compose --profile vision up -d --build
+VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/videos/clip.mp4 docker compose --profile vision up -d --build
 ```
 
 In Git Bash on Windows, prefix the command with `MSYS_NO_PATHCONV=1`, otherwise `/dev/null` is rewritten to `nul`.
+
+**Tuning parameters.** `aims_ws/src/vision/vision_bringup/config/` is mounted read-only over the installed copy, so after editing `vision.yaml` run `docker compose restart vision`; no rebuild is needed. The nodes read their parameters only at startup.
 
 **Camera on another machine** (Linux, host networking): on the machine that has the camera, start only the vision service (same `ROS_DOMAIN_ID` as the rest of the stack):
 
@@ -144,8 +146,8 @@ When the first `/is_moving` arrives, the dashboard shows a movement pill (Moving
 
 **Limits to know about:**
 - The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; lower `min_std` in `aims_ws/src/vision/vision_bringup/config/vision.yaml`.
-- The ground-truth tools `breath_control` (operator mouse clicks, `pynput`) and `heart_control` (a second camera filming a reference device) are not in the default launch and need a host with a GUI. `heart_control` also opens camera index 0, the same default as the vision node.
-- The **Position Map** tab shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar the tab keeps spinning.
+- Ground truth: the dashboard **Breath** button publishes `/breath_control` on each exhale click. `/heart_control` has no publisher except `mock_heart_beat`, so the heart ground truth stays empty. The old `breath_control` and `heart_control` nodes are in `deprecated/`; to add a new source (Polar strap, ICU monitor) see [docs/ground-truth-topics.md](docs/ground-truth-topics.md) (proposal).
+- The **MMWave Position Map** tab (Experimental) shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar the tab keeps spinning.
 
 ## Environment variables
 
@@ -164,7 +166,7 @@ All variables are optional: each has a built-in default (the value shown). To ch
 | `NODE_ENV` | `development` | web | Node.js environment |
 | `ROSBRIDGE_PORT` | `9090` | rosbridge, web | Host port of the rosbridge WebSocket; the web server hands it to the browser via `GET /config` |
 | `VISION_DEVICE` | `cpu` (`cuda:0` with `docker-compose.gpu.yml`) | vision | Inference device of `pose_estimation`: `cpu` or `cuda:0` |
-| `VISION_CAMERA` | `0` | vision | Camera index (`0` is `/dev/video0`) or a video file path inside the container, such as `/app/captures/clip.mp4` |
+| `VISION_CAMERA` | `0` | vision | Camera index (`0` is `/dev/video0`) or a video file path inside the container, such as `/app/videos/clip.mp4` |
 | `VISION_VIDEO_DEVICE` | `/dev/video0` | vision | Host device mapped to `/dev/video0` in the container; set to `/dev/null` when there is no camera |
 | `PICOSCENES_FORWARD_HOST` | `127.0.0.1` | host scripts | Where `picoscenes_rx.sh` forwards frames |
 | `PICOSCENES_FORWARD_PORT` | `1025` | host scripts | UDP port to forward to |
@@ -189,18 +191,18 @@ The `PICOSCENES_*` variables are read only by the host scripts, not by the conta
 | `persistence_action` | Action server `persist_csi`: saves N frames to `captures/` | | `/pktcsi`, `/heart_control`, `/breath_control` |
 | `persistence_bridge` | Lets the web page start a capture | `/persistence_bridge/response`, `/persistence_bridge/feedback` | `/persistence_bridge/request` |
 
-These six run in the default launch (`ros2 launch csi aims_launch.py`). Other executables exist in `aims_ws/src/csi` and are not started by default: `breath_estimator_cardiofi` (`/breath_estimate_cardiofi`, `/heart_estimate_cardiofi`), `heart_control`, `breath_control`, `mock_breathing`, `mock_heart_beat`, `breath_plotter`, `csi_heatmap_plotter`, `mmw_talker`, `octave_cardiofi`.
+These six run in the default launch (`ros2 launch csi aims_launch.py`). Other executables exist in `aims_ws/src/csi` and are not started by default: `breath_estimator_cardiofi` (`/breath_estimate_cardiofi`, `/heart_estimate_cardiofi`), `mock_breathing`, `mock_heart_beat`, `breath_plotter`, `csi_heatmap_plotter`, `mmw_talker`, `octave_cardiofi`.
 
 The vision nodes run in the `vision` service (profile `vision`, `ros2 launch vision_bringup vision.launch.py`):
 
 | Executable | Role | Publishes | Subscribes |
 |---|---|---|---|
 | `pose_estimation` | Reads the camera or a video file, runs YOLOv8n-pose | `/estimation_points` (`vision_interfaces/PoseKeypoints`), `/vision/image_raw` | |
-| `there_is_person` | Decides whether a person is in the frame | `/there_is_person` (`Bool`, latched) | `/estimation_points` |
-| `moving` | Kalman-filtered keypoint speed: is the person moving | `/is_moving` (`Bool`, latched) | `/estimation_points`, `/there_is_person` |
+| `presence` | Decides whether a person is in the frame | `/person_present` (`Bool`, latched) | `/estimation_points` |
+| `moving` | Kalman-filtered keypoint speed: is the person moving | `/is_moving` (`Bool`, latched) | `/estimation_points`, `/person_present` |
 | `visualization` | Draws the keypoints and encodes a JPEG | `/vision_image` (`sensor_msgs/CompressedImage`) | `/estimation_points`, `/vision/image_raw` |
 
-The dashboard subscribes to `/vision_image`, `/there_is_person` and `/is_moving`. It detects the camera by the node name `/pose_estimation`. The `apnea_ai` node (Keras, TensorFlow) is no longer part of the `csi` package; the code is in [deprecated/apnea_ai/](deprecated/apnea_ai/README.md).
+The dashboard subscribes to `/vision_image`, `/person_present` and `/is_moving`. It detects the camera by the node name `/pose_estimation`. The `apnea_ai` node (Keras, TensorFlow) is no longer part of the `csi` package; the code is in [deprecated/apnea_ai/](deprecated/apnea_ai/README.md).
 
 Message definitions are in `aims_ws/src/custom_interfaces` (`BreathEstimate` has `breath_rate`, `precision`, `apnea_detected`).
 
@@ -217,7 +219,7 @@ File name:
 ```
 
 - Every component is sanitized: characters outside `A-Za-z0-9_-` become `_`, so there is no `:` and the names are valid on Windows.
-- Two extra files are written when the optional `heart_control` / `breath_control` publishers produced data: the same name with the prefix `Heartbeats-` or `Breaths-`.
+- Two extra files are written when something published on `/heart_control` / `/breath_control` during the capture (for example the dashboard Breath button or `mock_heart_beat`): the same name with the prefix `Heartbeats-` or `Breaths-`.
 - Each line of the CSI file is the Python `str()` of a dictionary built from one `/pktcsi` message (`aims_ws/src/csi/csi/libs/CsiMsgToDict.py`). Heartbeat and breath files hold `{'timestamp', 'pktid'}` dictionaries.
 - `utils/AIMSAPI-py` holds helper functions for handling AIMS data; see its [README](utils/AIMSAPI-py/README.md).
 
@@ -256,11 +258,11 @@ To run only the camera on one of the machines, see [Vision](#vision-camera-optio
 | Port already in use | Change `WEB_PORT`, `ROSBRIDGE_PORT` or `CSI_UDP_PORT`. |
 | Dashboard cannot connect to rosbridge from another machine | Port `ROSBRIDGE_PORT` (default 9090) must be reachable at the same hostname you use for the page. |
 | `csi_publisher` logs "No PicoScenes UDP frames ... yet" (hardware mode) | Is `picoscenes_rx.sh` running? Is `CSI_SOURCE=picoscenes` set? Does the NIC name match (`ip link`)? Is the transmitter running? |
-| `vision` container exits or `/dev/video0` error | No camera at `/dev/video0` (always the case on Docker Desktop). Use a video file: `VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/captures/<file>.mp4`, see [Vision](#vision-camera-optional). |
+| `vision` container exits or `/dev/video0` error | No camera at `/dev/video0` (always the case on Docker Desktop). Use a video file: `VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/videos/<file>.mp4`, see [Vision](#vision-camera-optional). |
 | Git Bash: `/dev/null` becomes `nul` and the vision container does not start | Git Bash rewrites Unix paths. Prefix the command with `MSYS_NO_PATHCONV=1`. |
-| Camera works but the dashboard says no person | The presence rule was tuned for a close webcam. A person far away or narrow in the frame is not detected; lower `min_std` (default 0.045) in `aims_ws/src/vision/vision_bringup/config/vision.yaml` and rebuild the vision image. |
+| Camera works but the dashboard says no person | The presence rule was tuned for a close webcam. A person far away or narrow in the frame is not detected; lower `min_std` (default 0.045) in `aims_ws/src/vision/vision_bringup/config/vision.yaml` and run `docker compose restart vision`. |
 | Movement pill says "Waiting for camera" | No `/is_moving` yet: the vision service is not running, or `ROS_DOMAIN_ID` differs. Check `docker compose logs vision`. |
-| Position Map tab keeps spinning | It shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar there is no data. |
+| MMWave Position Map tab keeps spinning | It shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar there is no data. |
 | GPU not used (`device` is `cpu`, or CUDA errors) | Use the GPU override (`make up-vision-gpu`) and check the NVIDIA Container Toolkit (Linux) or WSL2 GPU support (Windows). `docker compose logs vision` shows the device the model loaded on. |
 | `picoscenes_rx.sh`: PicoScenes not found | Run `scripts/host/install_picoscenes.sh` and reboot. |
 | Installer says no IWL5300 found | It refuses without the card. Pass `--skip-hardware-check` to install anyway. |
@@ -274,7 +276,7 @@ To run only the camera on one of the machines, see [Vision](#vision-camera-optio
 ├── aims_ws/src/            # ROS2 workspace
 │   ├── csi/                # CSI nodes, launch files, signal processing libs
 │   ├── custom_interfaces/  # .msg / .srv / .action definitions
-│   └── vision/             # camera pipeline (YOLOv8n-pose): pose_estimation, there_is_person,
+│   └── vision/             # camera pipeline (YOLOv8n-pose): pose_estimation, presence,
 │                           #   moving, visualization, vision_interfaces, vision_bringup
 ├── web/                    # Express.js server and dashboard (Tailwind CSS, roslib.js)
 ├── docker/                 # Dockerfiles (ros2, vision, web)
@@ -289,6 +291,7 @@ To run only the camera on one of the machines, see [Vision](#vision-camera-optio
 ├── models/                 # AI model files (mounted at /app/models); vision/yolov8n-pose.pt is shipped
 ├── deprecated/apnea_ai/    # retired Keras apnea node, with restore steps
 ├── captures/               # capture output (bind mount)
+├── videos/                 # test videos for the vision service (read-only mount)
 ├── resources/              # patched PicoScenes parser, test assets
 ├── utils/AIMSAPI-py/       # Python helpers to read capture files
 ├── docs/                   # changelog and ADRs

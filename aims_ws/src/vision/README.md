@@ -55,7 +55,7 @@ to [0, 1]; a keypoint below `conf_threshold` is reported as (0, 0) with confiden
 ## Running
 
 The model is `models/vision/yolov8n-pose.pt` in the repository, mounted at `/app/models`
-in the container. `ultralytics` and `torch` come from `requirements/vision-*.lock`
+in the container (the image runs ultralytics offline, so it never downloads weights). `ultralytics` and `torch` come from `requirements/vision-*.lock`
 (no rosdep key).
 
 ```bash

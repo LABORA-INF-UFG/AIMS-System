@@ -1,0 +1,22 @@
+# Vision (pose_estimation) Python deps, CUDA 12.4 PyTorch + TensorRT (engine export).
+# The CUDA runtime ships in the nvidia-* wheels; the host only needs the NVIDIA driver.
+# cu124 and TensorRT 10.7 both support Turing (sm_75, e.g. GTX 1650).
+# Keep torch/torchvision/ultralytics in step with vision-cpu.in (only the build tag differs).
+# Regenerate vision-cuda.lock (from the repo root, no local Python needed):
+#   docker run --rm -v "$PWD":/w -w /w ghcr.io/astral-sh/uv:python3.10-bookworm \
+#     env NVIDIA_TENSORRT_DISABLE_INTERNAL_PIP=1 uv pip compile requirements/vision-cuda.in -o requirements/vision-cuda.lock \
+#     -c requirements/constraints.txt --python-version 3.10 \
+#     --python-platform x86_64-manylinux_2_35 --generate-hashes --emit-index-url \
+#     --extra-index-url https://download.pytorch.org/whl/cu124 \
+#     --extra-index-url https://pypi.nvidia.com --index-strategy unsafe-best-match
+torch==2.6.0+cu124
+torchvision==0.21.0+cu124
+ultralytics==8.4.177
+# Only an sdist (a 2-line `tensorrt` shim over the -libs/-bindings wheels).
+# NVIDIA_TENSORRT_DISABLE_INTERNAL_PIP=1 (command above and docker/vision/Dockerfile)
+# makes it declare those wheels as normal deps instead of running a nested pip.
+tensorrt-cu12==10.7.0
+# Needed by ultralytics' .pt -> ONNX -> .engine export (else it pip-installs them at runtime)
+onnx
+onnxslim
+onnxruntime

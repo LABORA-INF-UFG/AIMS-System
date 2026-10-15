@@ -75,6 +75,7 @@ Constraints:
 - The `:cuda` image was tested only on a Turing GPU (GTX 1650).
 - A webcam cannot reach a container on Docker Desktop. Windows and macOS users need a video file, or the camera on a Linux machine with host networking.
 - The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; tune `min_std` in `vision.yaml`.
+- Privacy: `/vision_image` is a live JPEG stream of the subject, and rosbridge serves every topic on `0.0.0.0:9090` without authentication. Accepted for lab use on a trusted network; the README documents how to stop the stream (`publish_image: false`) or bind rosbridge to localhost.
 - The CPU and CUDA variants use different image tags (`aims-system-vision:cpu` and `:cuda`), so switching between them builds the other image the first time.
 
 ## Related Links

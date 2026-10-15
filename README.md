@@ -136,7 +136,11 @@ docker compose -f docker-compose.yml -f docker-compose.hostnet.yml --profile vis
 
 Add `-f docker-compose.gpu.yml` as a third file for a GPU.
 
-When the first `/is_moving` arrives, the dashboard shows a movement pill (Moving / Still); before that it shows "Waiting for camera". The Camera tab appears when the node `/pose_estimation` exists.
+When the first `/is_moving` arrives, the dashboard shows a movement pill (Moving / Still); before that it shows "Waiting for camera". The Camera tab shows the frames of `/vision_image` with the keypoint overlay, and the camera counts for presence while the node `/pose_estimation` exists.
+
+**Privacy:** rosbridge listens on `0.0.0.0:${ROSBRIDGE_PORT}` (default 9090) without authentication, so any machine that reaches that port can subscribe to `/vision_image`, a live JPEG stream of the subject. Keep the stack on a trusted network, and choose one of:
+- stop the stream with `publish_image: false` (in `vision.yaml`, under `pose_estimation`); the Camera tab then stays empty while presence and movement keep working;
+- publish rosbridge only on the local machine by changing its port mapping in `docker-compose.yml` to `"127.0.0.1:${ROSBRIDGE_PORT:-9090}:9090"` (the dashboard then works only from that machine).
 
 **Limits to know about:**
 - The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; lower `min_std` in `aims_ws/src/vision/vision_bringup/config/vision.yaml`.

@@ -74,7 +74,7 @@ let listenerIsMoving = new ROSLIB.Topic({
   name: '/is_moving',
   messageType: 'std_msgs/msg/Bool'
 });
-let is_moving = false;
+let is_moving = null; // null until the first /is_moving message
 
 // Check whether the vision and mmWave nodes are connected
 setInterval(() => {
@@ -118,15 +118,15 @@ function setIs_person(issuer, status) {
 // Single place that decides between the "Subject not detected" card and the
 // vitals. '' restores the stylesheet display (block / grid): 'inline' breaks both.
 function toggle_no_person_div(){
-  const show_results = document.getElementById('debug').checked || (is_person && !equipments.none);
+  const debug = document.getElementById('debug').checked;
+  const show_results = debug || (is_person && !equipments.none);
   document.getElementById('no_person_div').style.display = show_results ? 'none' : '';
   document.getElementById('results-container').style.display = show_results ? '' : 'none';
+  document.querySelectorAll('.ground-truth').forEach(el => el.style.display = debug ? '' : 'none');
 
-  // Movement pill: only meaningful while the camera sees a person
-  const show_movement = equipments.camera && is_person;
-  document.getElementById('movement_div').style.display = show_movement ? '' : 'none';
-  document.getElementById('movement_moving').style.display = is_moving ? '' : 'none';
-  document.getElementById('movement_still').style.display = is_moving ? 'none' : '';
+  document.getElementById('movement_waiting').style.display = is_moving === null ? '' : 'none';
+  document.getElementById('movement_moving').style.display = is_moving === true ? '' : 'none';
+  document.getElementById('movement_still').style.display = is_moving === false ? '' : 'none';
 }
 
 toggle_no_person_div();
@@ -350,10 +350,11 @@ listenerBR.subscribe(function(message) {
   //console.log(message.apnea_detected);
   if (! receivedFirstMessage){
       receivedFirstMessage = true
+      // Buffers are full once the first estimate arrives, with or without a subject
+      document.getElementById('loading').style.display = 'none';
   }
 
   if(is_person){
-    document.getElementById('loading').style.display = 'none';
     let brValue = document.getElementById('br_value');
 
     if (decoded.apnea_detected == 1){

@@ -22,7 +22,7 @@ device defaults to $VISION_DEVICE, else 'cpu'; camera defaults to $VISION_CAMERA
 """
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, Shutdown
 from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
@@ -42,7 +42,8 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'camera', default_value=EnvironmentVariable('VISION_CAMERA', default_value='0')),
         Node(package='pose_estimation', executable='pose_estimation', name='pose_estimation',
-             parameters=[config, overrides], output='screen'),
+             parameters=[config, overrides], output='screen',
+             on_exit=Shutdown(reason='pose_estimation exited')),
         Node(package='there_is_person', executable='there_is_person', name='there_is_person',
              parameters=[config], output='screen'),
         Node(package='moving', executable='moving', name='moving',

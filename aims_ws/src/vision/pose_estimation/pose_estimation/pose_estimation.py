@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import sys
 
 import cv2
 from cv_bridge import CvBridge
@@ -32,6 +33,9 @@ KEYPOINT_NAMES = [
     'left_wrist', 'right_wrist', 'left_hip', 'right_hip',
     'left_knee', 'right_knee', 'left_ankle', 'right_ankle',
 ]
+
+# Consecutive failed reads (about 3 s at 15 Hz) before the node gives up.
+MAX_FAILED_READS = 50
 
 
 def resolve_model_path(model_path, device):
@@ -88,6 +92,8 @@ class PoseEstimation(Node):
         self.image_pub = self.create_publisher(
             Image, '/vision/image_raw',
             QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+        self.failed_reads = 0
+        self.fatal = False
         self.timer = self.create_timer(1.0 / rate_hz, self.run_inference)
 
     def read_frame(self):
@@ -100,15 +106,24 @@ class PoseEstimation(Node):
 
     def run_inference(self):
         frame = self.read_frame()
+        # Stamp at capture time (before inference); both messages share it.
+        stamp = self.get_clock().now().to_msg()
         if frame is None:
+            self.failed_reads += 1
             self.get_logger().warn('Failed to read a frame from the camera',
                                    throttle_duration_sec=5.0)
+            if self.failed_reads >= MAX_FAILED_READS:
+                self.get_logger().error(
+                    f'{self.failed_reads} consecutive camera read failures, exiting')
+                self.fatal = True
+                rclpy.shutdown()
             return
+        self.failed_reads = 0
 
         results = self.model(frame, verbose=False, imgsz=self.imgsz, device=self.device)
 
         msg = PoseKeypoints()
-        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = stamp
         msg.header.frame_id = 'camera'
         msg.names = KEYPOINT_NAMES
         msg.keypoints = [Point() for _ in KEYPOINT_NAMES]
@@ -142,7 +157,9 @@ def main(args=None):
     node = PoseEstimation()
     rclpy.spin(node)
     node.destroy_node()
-    rclpy.shutdown()
+    rclpy.try_shutdown()
+    if node.fatal:
+        sys.exit(1)
 
 
 if __name__ == '__main__':

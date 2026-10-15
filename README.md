@@ -321,3 +321,7 @@ See [web/README.md](web/README.md) for the web server. The core Python dependenc
 - Changes: [docs/CHANGELOG.md](docs/CHANGELOG.md). v0.3.0 contains breaking renames; read it if you have data from earlier versions.
 - Decisions: [docs/adrs/](docs/adrs/README.md).
 - Repository: https://github.com/LABORA-INF-UFG/AIMS-System
+
+## License
+
+No license chosen yet. See [docs/LICENSING.md](docs/LICENSING.md) (TODO).

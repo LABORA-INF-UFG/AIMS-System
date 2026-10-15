@@ -1,129 +1,148 @@
+# Copyright 2026 Lucas Reis
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
+
 import cv2
+from cv_bridge import CvBridge
+from geometry_msgs.msg import Point
 import numpy as np
-from ultralytics import YOLO
 import rclpy
 from rclpy.node import Node
-from ament_index_python.packages import get_package_share_directory
-from geometry_msgs.msg import Point
-from interfaces.msg import ArticulationPoints
-from cv_bridge import CvBridge
+from rclpy.qos import QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Image
+from ultralytics import YOLO
+from vision_interfaces.msg import PoseKeypoints
 
-class Pose_Estimation(Node):
+# COCO keypoint order used by YOLOv8-pose.
+KEYPOINT_NAMES = [
+    'nose', 'left_eye', 'right_eye', 'left_ear', 'right_ear',
+    'left_shoulder', 'right_shoulder', 'left_elbow', 'right_elbow',
+    'left_wrist', 'right_wrist', 'left_hip', 'right_hip',
+    'left_knee', 'right_knee', 'left_ankle', 'right_ankle',
+]
+
+
+def resolve_model_path(model_path, device):
+    """Return the TensorRT engine next to model_path when running on GPU and it exists."""
+    engine = os.path.splitext(model_path)[0] + '.engine'
+    if device != 'cpu' and os.path.exists(engine):
+        return engine
+    return model_path
+
+
+class PoseEstimation(Node):
+
     def __init__(self):
-        super().__init__('Pose_Estimation')
-        self.get_logger().info('Pose Estimation node initialized (YOLOv8n-pose version).')
+        super().__init__('pose_estimation')
+        self.device = self.declare_parameter('device', 'cpu').value
+        model_path = self.declare_parameter(
+            'model_path', '/app/models/vision/yolov8n-pose.pt').value
+        camera = self.declare_parameter('camera', '0').value
+        width = self.declare_parameter('width', 352).value
+        height = self.declare_parameter('height', 288).value
+        fps = self.declare_parameter('fps', 30).value
+        self.imgsz = self.declare_parameter('imgsz', 320).value
+        self.conf_threshold = self.declare_parameter('conf_threshold', 0.4).value
+        rate_hz = self.declare_parameter('rate_hz', 15.0).value
+        self.publish_image = self.declare_parameter('publish_image', True).value
 
-        package_path = get_package_share_directory('weights')
-        engine_path = os.path.join(package_path, 'models', 'yolov8n-pose.engine')
-        pt_path = os.path.join(package_path, 'models', 'yolov8n-pose.pt')
-        
-        if os.path.exists(engine_path):
-            model_path = engine_path
-            self.get_logger().info(f'Using TensorRT engine: {model_path}')
-        else:
-            model_path = pt_path
-            self.get_logger().info(f'TensorRT engine not found, using PyTorch model: {model_path}')
-        
-        # Load YOLO model
+        model_path = resolve_model_path(model_path, self.device)
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(f'Pose model not found: {model_path}')
         self.model = YOLO(model_path, task='pose')
-        
-        self.Hz = 30
-        self.publisher_ = self.create_publisher(ArticulationPoints, 'estimation_points', self.Hz)
-        
-        # Criação de um objeto da mensagem personalizada
-        self.msg = ArticulationPoints()
-        self.timer_ = self.create_timer(1./self.Hz, self.run_inference)
-        
-        self.articulation_names = ['nose', 'left eye', 'right eye', 'left ear', 'right ear', 'left shoulder',
-                                'right shoulder', 'left elbow', 'right elbow', 'left wrist', 'right wrist',
-                                'left hip', 'right hip', 'left knee', 'right knee', 'left ankle', 'right ankle']
-            
-        self.msg.name = [''] * len(self.articulation_names)
-        self.msg.coordinates = [Point() for _ in range(len(self.articulation_names))]
+        # Warm-up inference: fails fast on a bad device and tells which device is really used.
+        self.model(np.zeros((height, width, 3), np.uint8), verbose=False,
+                   imgsz=self.imgsz, device=self.device)
+        self.get_logger().info(
+            f'Model {model_path} running on device {self.model.predictor.device}')
 
-        # Inicializa a captura de vídeo da webcam
-        self.cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        self.is_file = not camera.isdigit()
+        if not self.is_file:
+            self.cap = cv2.VideoCapture(int(camera), cv2.CAP_V4L2)
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            self.cap.set(cv2.CAP_PROP_FPS, fps)
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        else:
+            self.cap = cv2.VideoCapture(camera)
+        if not self.cap.isOpened():
+            self.get_logger().error(f'Could not open camera {camera}')
+        else:
+            self.get_logger().info(f'Reading frames from camera {camera}')
 
-        # Usa o formato MJPG
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-        
-        # Muda alguns parametros da camera
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 352)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 288)
-        self.cap.set(cv2.CAP_PROP_FPS, 30)
+        self.bridge = CvBridge()
+        self.points_pub = self.create_publisher(PoseKeypoints, '/estimation_points', 10)
+        self.image_pub = self.create_publisher(
+            Image, '/vision/image_raw',
+            QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+        self.timer = self.create_timer(1.0 / rate_hz, self.run_inference)
 
-        # Definir o tamanho do buffer como 1
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    def read_frame(self):
+        ret, frame = self.cap.read()
+        if not ret and self.is_file:
+            # Loop video files so tests can run indefinitely.
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = self.cap.read()
+        return frame if ret else None
 
     def run_inference(self):
-        # Lê um frame do vídeo
-        ret, frame = self.cap.read()
-
-        if not ret or frame is None:
-            self.get_logger().warn("Falha ao capturar frame da câmera!")
+        frame = self.read_frame()
+        if frame is None:
+            self.get_logger().warn('Failed to read a frame from the camera',
+                                   throttle_duration_sec=5.0)
             return
-            
-        # Run inference using YOLOv8n-pose with imgsz=320 for performance
-        # Explicitly set device=0 (GPU) to ensure TensorRT context is correctly created
-        results = self.model(frame, verbose=False, imgsz=320, device=0)
 
-        # Initialize points to zero
-        for i in range(len(self.articulation_names)):
-            self.msg.name[i] = self.articulation_names[i]
-            p = Point()
-            p.x = 0.0
-            p.y = 0.0
-            self.msg.coordinates[i] = p
+        results = self.model(frame, verbose=False, imgsz=self.imgsz, device=self.device)
 
-        if results and len(results[0].keypoints.data) > 0:
-            # Get boxes and keypoints
-            boxes = results[0].boxes
-            kpts_all_norm = results[0].keypoints.xyn # [N, 17, 2]
-            confidences_all = results[0].keypoints.conf # [N, 17]
+        msg = PoseKeypoints()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'camera'
+        msg.names = KEYPOINT_NAMES
+        msg.keypoints = [Point() for _ in KEYPOINT_NAMES]
+        msg.confidence = [0.0] * len(KEYPOINT_NAMES)
 
-            principal_index = 0
-            if len(boxes) > 1:
-                # Find the box with the largest area (principal person)
-                areas = boxes.xywh[:, 2] * boxes.xywh[:, 3]
-                principal_index = int(np.argmax(areas.cpu().numpy()))
-            
-            # Select keypoints for the principal person
-            kpts_norm = kpts_all_norm[principal_index].cpu().numpy()
-            confidences = confidences_all[principal_index].cpu().numpy()
+        kpts = results[0].keypoints
+        if kpts is not None and kpts.conf is not None and len(kpts.data) > 0:
+            # Keep only the main person: the largest bounding box.
+            boxes = results[0].boxes.xywh.cpu().numpy()
+            main = int(np.argmax(boxes[:, 2] * boxes[:, 3]))
+            xyn = kpts.xyn[main].cpu().numpy()
+            conf = kpts.conf[main].cpu().numpy()
+            for i, ((x, y), c) in enumerate(zip(xyn, conf)):
+                if c >= self.conf_threshold:
+                    msg.keypoints[i] = Point(x=float(x), y=float(y))
+                    msg.confidence[i] = float(c)
 
-            for i in range(len(self.articulation_names)):
-                x, y = kpts_norm[i]
-                conf = confidences[i]
-                
-                aux = Point()
-                if conf >= 0.4:
-                    aux.x = float(x)
-                    aux.y = float(y)
-                else:
-                    aux.x = 0.0
-                    aux.y = 0.0
-                
-                self.msg.coordinates[i] = aux
+        self.points_pub.publish(msg)
+        if self.publish_image:
+            image = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
+            image.header = msg.header
+            self.image_pub.publish(image)
 
-        # Converter o frame para o formato sensor_msgs/Image
-        bridge = CvBridge()
-        image_msg = bridge.cv2_to_imgmsg(frame, encoding="bgr8")
-        
-        self.msg.image = image_msg
-        self.publisher_.publish(self.msg)
-        
+    def destroy_node(self):
+        self.cap.release()
+        super().destroy_node()
+
 
 def main(args=None):
     rclpy.init(args=args)
-    node = Pose_Estimation()
+    node = PoseEstimation()
     rclpy.spin(node)
-    
     node.destroy_node()
     rclpy.shutdown()
-
-    node.cap.release()
-    cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':

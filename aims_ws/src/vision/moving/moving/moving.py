@@ -18,7 +18,7 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_msgs.msg import Bool
 from vision_interfaces.msg import PoseKeypoints
 
-from .tracker import MotionTracker
+from .tracker import MotionHold, MotionTracker
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 DEFAULT_DT = 1.0 / 15.0
@@ -31,6 +31,8 @@ class Moving(Node):
         self.tracker = MotionTracker(
             velocity_threshold=self.declare_parameter('velocity_threshold', 0.15).value,
             max_lost_frames=self.declare_parameter('max_lost_frames', 5).value)
+        # Limb speed crosses the threshold back and forth within one movement.
+        self.hold = MotionHold(self.declare_parameter('hold_sec', 1.0).value)
 
         self.publisher = self.create_publisher(Bool, '/is_moving', LATCHED)
         self.create_subscription(PoseKeypoints, '/estimation_points', self.callback_points, 10)
@@ -51,6 +53,7 @@ class Moving(Node):
         if not self.is_person:
             # Restart tracking from scratch when the person leaves the frame.
             self.tracker.reset()
+            self.hold.reset()
             self.last_stamp = None
             self.set_moving(False)
 
@@ -68,7 +71,7 @@ class Moving(Node):
         moving = self.tracker.update(keypoints, msg.confidence, dt)
         for name, speed in moving.items():
             self.get_logger().debug(f'{name} is moving (speed: {speed:.4f})')
-        self.set_moving(bool(moving))
+        self.set_moving(self.hold.update(bool(moving), stamp))
 
 
 def main(args=None):

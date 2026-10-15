@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from moving.tracker import JOINT_NAMES, KalmanFilterKeypoint, MotionTracker
+from moving.tracker import JOINT_NAMES, KalmanFilterKeypoint, MotionHold, MotionTracker
 import numpy as np
 import pytest
 
@@ -69,3 +69,14 @@ def test_reset_clears_tracks():
     tracker.update(*body_frame(), DT)
     tracker.reset()
     assert tracker.trackers == [None] * len(JOINT_NAMES)
+
+
+def test_motion_hold_keeps_motion_for_hold_sec():
+    hold = MotionHold(hold_sec=1.0)
+    assert hold.update(True, 10.0)
+    assert hold.update(False, 10.5)
+    assert not hold.update(False, 11.0)
+
+
+def test_motion_hold_is_false_before_any_motion():
+    assert not MotionHold(hold_sec=1.0).update(False, 10.0)

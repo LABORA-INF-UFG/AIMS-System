@@ -18,7 +18,7 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 from std_msgs.msg import Bool
 from vision_interfaces.msg import PoseKeypoints
 
-from .presence import is_person
+from .presence import Hysteresis, is_person
 
 LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
 
@@ -29,6 +29,8 @@ class ThereIsPerson(Node):
         super().__init__('there_is_person')
         self.min_points = self.declare_parameter('min_points', 6).value
         self.min_std = self.declare_parameter('min_std', 0.045).value
+        # One frame with a low-confidence limb must not flip presence (and reset `moving`).
+        self.hysteresis = Hysteresis(self.declare_parameter('min_frames', 4).value)
 
         self.publisher = self.create_publisher(Bool, '/there_is_person', LATCHED)
         self.create_subscription(PoseKeypoints, '/estimation_points', self.callback, 10)
@@ -38,7 +40,8 @@ class ThereIsPerson(Node):
 
     def callback(self, msg):
         keypoints = [(p.x, p.y) for p in msg.keypoints]
-        detected = is_person(keypoints, msg.confidence, self.min_points, self.min_std)
+        detected = self.hysteresis.update(
+            is_person(keypoints, msg.confidence, self.min_points, self.min_std))
         if detected != self.state:
             self.state = detected
             self.publisher.publish(Bool(data=detected))

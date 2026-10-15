@@ -32,3 +32,22 @@ def is_person(keypoints, confidence, min_points=6, min_std=0.045):
         return False
     std_x, std_y = points.std(axis=0)
     return bool(std_x >= min_std and std_y >= min_std)
+
+
+class Hysteresis:
+    """Change the reported state only after min_frames consecutive frames disagree with it."""
+
+    def __init__(self, min_frames, state=False):
+        self.min_frames = min_frames
+        self.state = state
+        self.count = 0
+
+    def update(self, value):
+        if value == self.state:
+            self.count = 0
+        else:
+            self.count += 1
+            if self.count >= self.min_frames:
+                self.state = value
+                self.count = 0
+        return self.state

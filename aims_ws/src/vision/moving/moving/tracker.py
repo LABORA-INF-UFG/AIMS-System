@@ -122,3 +122,19 @@ class MotionTracker:
             if speed > self.velocity_threshold:
                 moving[name] = speed
         return moving
+
+
+class MotionHold:
+    """Keep reporting motion until hold_sec has passed since the last frame with motion."""
+
+    def __init__(self, hold_sec):
+        self.hold_sec = hold_sec
+        self.last_motion = None
+
+    def reset(self):
+        self.last_motion = None
+
+    def update(self, moving, stamp):
+        if moving:
+            self.last_motion = stamp
+        return self.last_motion is not None and stamp - self.last_motion < self.hold_sec

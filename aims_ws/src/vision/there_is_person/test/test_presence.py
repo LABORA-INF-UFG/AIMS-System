@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from there_is_person.presence import is_person
+from there_is_person.presence import Hysteresis, is_person
 
 NOT_DETECTED = (0.0, 0.0)
 
@@ -59,3 +59,13 @@ def test_thresholds_are_configurable():
     points = [(0.4 + 0.1 * (i % 2), 0.2 + 0.07 * i) for i in range(4)]
     assert not is_person(*frame(points))
     assert is_person(*frame(points), min_points=4, min_std=0.02)
+
+
+def test_hysteresis_ignores_a_single_glitch():
+    presence = Hysteresis(min_frames=4, state=True)
+    assert [presence.update(v) for v in [True, False, True, True]] == [True] * 4
+
+
+def test_hysteresis_flips_after_min_frames():
+    presence = Hysteresis(min_frames=4)
+    assert [presence.update(True) for _ in range(4)] == [False, False, False, True]

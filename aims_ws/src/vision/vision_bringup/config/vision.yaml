@@ -17,11 +17,13 @@ there_is_person:
   ros__parameters:
     min_points: 6
     min_std: 0.045
+    min_frames: 4             # consecutive frames before presence flips (~0.25 s at 15 Hz)
 
 moving:
   ros__parameters:
     velocity_threshold: 0.15  # normalized image units per second
     max_lost_frames: 5
+    hold_sec: 1.0             # keep "moving" this long after the last fast keypoint
 
 visualization:
   ros__parameters:

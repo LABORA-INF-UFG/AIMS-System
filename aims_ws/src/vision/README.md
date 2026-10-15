@@ -44,8 +44,10 @@ to [0, 1]; a keypoint below `conf_threshold` is reported as (0, 0) with confiden
 | | `publish_image` | true | Publish `/vision/image_raw` |
 | `there_is_person` | `min_points` | 6 | Minimum detected body keypoints (shoulders to knees) |
 | | `min_std` | 0.045 | Minimum spread of those keypoints on x and on y |
+| | `min_frames` | 4 | Consecutive frames that must disagree before presence changes |
 | `moving` | `velocity_threshold` | 0.15 | Keypoint speed (normalized units/s) counted as movement |
 | | `max_lost_frames` | 5 | Frames a missing keypoint keeps its track |
+| | `hold_sec` | 1.0 | Seconds `/is_moving` stays true after the last fast keypoint |
 | `visualization` | `image_rate_hz` | 5 | `/vision_image` rate |
 | | `jpeg_quality` | 70 | JPEG quality |
 | | `show_window` | false | Also show an OpenCV window |

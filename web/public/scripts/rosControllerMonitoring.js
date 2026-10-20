@@ -1,8 +1,8 @@
-var graficoHistogramaAtivo = false;
-var graficoSinalAtivo = false;
-var graficoMapaAtivo = false;
-var graficoSinalAtivo2 = false;
-var graficoMapaMmWAtivo = false;
+var histogramChartActive = false;
+var signalChartActive = false;
+var heatmapChartActive = false;
+var signalChartActive2 = false;
+var mmwaveHeatmapChartActive = false;
 
 var buffer1 = []; //for subcarrier 1
 var buffer2 = []; //for subcarrier 2
@@ -37,26 +37,35 @@ ros.on('error', function(error) {
 // Find out exactly when we made a connection.
 ros.on('connection', function() {
   console.log('Connection made!!');
+  breathBtn.disabled = false;
   document.getElementById('error').style.display = 'none';
   document.getElementById('connecting').style.display = 'none';
 });
 
+const breathBtn = document.getElementById('breath_btn');
+breathBtn.disabled = true;
+
 ros.on('close', function() {
+  breathBtn.disabled = true;
   //console.log('Connection closed.');
   document.getElementById('connecting').style.display = 'none';
 });
 
-// Create a connection to the rosbridge WebSocket server.
-ros.connect('ws://localhost:9090');
+// Create a connection to the rosbridge WebSocket server on the host that served
+// this page (so it also works from other machines on the LAN). Port comes from /config.
+fetch('/config')
+  .then((res) => res.json())
+  .then((cfg) => cfg.rosbridgePort, () => 9090)
+  .then((port) => ros.connect(`ws://${window.location.hostname}:${port || 9090}`));
 
 // AIMS Vision person detection
-let listenerThereIsPerson = new ROSLIB.Topic({
+let listenerPersonPresent = new ROSLIB.Topic({
   ros: ros,
-  name: '/there_is_person',
+  name: '/person_present',
   messageType: 'std_msgs/msg/Bool'
 });
 
-// var atualizada pelo nó da there_is_person, com default em 'true'
+// Updated by the presence node; defaults to 'true'
 let is_person = true;
 let equipments = {
   camera: false,
@@ -64,33 +73,33 @@ let equipments = {
   none: true
 }
 
-// Verifica se os nós da visão e da mmwave estão conectados
+// AIMS Vision movement detection (latched Bool)
+let listenerIsMoving = new ROSLIB.Topic({
+  ros: ros,
+  name: '/is_moving',
+  messageType: 'std_msgs/msg/Bool'
+});
+let is_moving = null; // null until the first /is_moving message
+
+// Check whether the vision and mmWave nodes are connected
 setInterval(() => {
   ros.getNodes((res) => {
     //console.log(res)
-    if(searchStringInArray('/Pose_Estimation', res) != -1){
-      equipments.camera = true;
-      equipments.none = false;
-    }
-    if(searchStringInArray('/pkt_mmw_publisher', res) != -1){
-      equipments.mmwave = true;
-      equipments.none = false;
-    }
-    if(!equipments.mmwave && !equipments.camera){
-      equipments.none = true
-      console.log("Câmera e MMwave desconectadas.")
-    }
+    equipments.camera = searchStringInArray('/pose_estimation', res) != -1;
+    equipments.mmwave = searchStringInArray('/pkt_mmw_publisher', res) != -1;
+    equipments.none = !equipments.camera && !equipments.mmwave;
+    if(!equipments.camera) is_moving = null; // back to "Waiting for camera"
     
   });
 }, 5000);
 
 
 /**
- * Seta o valor da var global is_person.
+ * Sets the value of the global is_person variable.
  *
- * @param {string} issuer - Nome do callback do equipamento que está setando o valor de is_person.
- * Podendo ser 'camera' ou 'mmwave'.
- * @param {boolean} status - Status da detecção da pessoa pelo equipamento.
+ * @param {string} issuer - Name of the equipment callback that is setting is_person.
+ * Can be 'camera' or 'mmwave'.
+ * @param {boolean} status - Person detection status reported by the equipment.
  */
 function setIs_person(issuer, status) {
   if (equipments.camera && equipments.mmwave){
@@ -103,32 +112,39 @@ function setIs_person(issuer, status) {
   }
 }
 
+// Single place that decides between the "Subject not detected" card and the
+// vitals. '' restores the stylesheet display (block / grid): 'inline' breaks both.
 function toggle_no_person_div(){
-  const no_person_div = document.getElementById('no_person_div');
-  const results_div = document.getElementById('results');
   const debug = document.getElementById('debug').checked;
-  
-  if(debug || is_person && !equipments.none){
-    no_person_div.style.display = 'none'
-    results_div.style.display = 'inline'
-  }
-  else{
-    no_person_div.style.display = 'inline'
-    results_div.style.display = 'none'
-  }
+  const show_results = debug || (is_person && !equipments.none);
+  document.getElementById('no_person_div').style.display = show_results ? 'none' : '';
+  document.getElementById('results-container').style.display = show_results ? '' : 'none';
+  document.querySelectorAll('.ground-truth').forEach(el => el.style.display = debug ? '' : 'none');
+
+  document.getElementById('movement_div').style.display = show_results ? '' : 'none';
+  document.getElementById('movement_waiting').style.display = is_moving === null ? '' : 'none';
+  document.getElementById('movement_moving').style.display = is_moving === true ? '' : 'none';
+  document.getElementById('movement_still').style.display = is_moving === false ? '' : 'none';
 }
 
+toggle_no_person_div();
 setInterval(toggle_no_person_div, 2000);
+document.getElementById('debug').addEventListener('change', toggle_no_person_div);
 
 
-listenerThereIsPerson.subscribe((message)=>{
-  console.log('Received from /there_is_person: ' + String(message.data))
+listenerPersonPresent.subscribe((message)=>{
+  console.log('Received from /person_present: ' + String(message.data))
   if (message.data){
     setIs_person('camera', true)
   }
   else{
     setIs_person('camera', false)
   }
+});
+
+listenerIsMoving.subscribe((message)=>{
+  is_moving = message.data;
+  toggle_no_person_div();
 });
 
 //Subscribing to a Topic for the heatmap image
@@ -138,23 +154,22 @@ let listenerHeatmap = new ROSLIB.Topic({
   name: '/heatmap',
   messageType: 'sensor_msgs/msg/Image'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerHeatmap.subscribe(function(message) {
   //console.log('Received image on ' + listenerHeatmap.name + ': ' + message);
-  //calling the atualization function
-  if (graficoMapaAtivo)
-      atualizaMapaImg(message);
+  //calling the update function
+  if (heatmapChartActive)
+      updateHeatmapImage(message);
 });
 
 //Subscribing to a Topic for the camera image from Vision Team
 let listenerVisionCameraImage = new ROSLIB.Topic({
   ros: ros,
-  name: '/visao_image',
-  messageType: 'sensor_msgs/msg/Image'
+  name: '/vision_image',
+  messageType: 'sensor_msgs/msg/CompressedImage'
 });
 listenerVisionCameraImage.subscribe((message)=>{
-  const img = 'data:image/png;base64,' + message.data; // TODO: adequar para o formato enviado pelo código da Visão
-  document.getElementById('img-camera-visao').src = img
+  document.getElementById('img-camera-vision').src = 'data:image/jpeg;base64,' + message.data;
 });
 
 //Subscribing to a Topic for the mmWave heatmap image
@@ -164,10 +179,10 @@ let listenerHeatmapMmW = new ROSLIB.Topic({
   messageType: 'sensor_msgs/msg/Image'
 });
 let showOnce = 0;
-// Função callback
+// Callback
 listenerHeatmapMmW.subscribe(function(message) {
    const imgData = 'data:image/png;base64,' + message.data;
-   if (graficoMapaMmWAtivo){
+   if (mmwaveHeatmapChartActive){
    	showOnce = showOnce + 1;   	
 	if (showOnce % 1 == 0) {
 	   	const imgElement = document.getElementById('heatmapMmWImg');
@@ -183,7 +198,7 @@ let listenerBRMmW = new ROSLIB.Topic({
   name : '/brmmw',
   messageType : 'custom_interfaces/msg/MmWVitalSignal'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerBRMmW.subscribe(function(message) {
   console.log('Received message on ' + listenerBRMmW.name + ': ' + message.rate);
   
@@ -201,7 +216,7 @@ let listenerHRMmW = new ROSLIB.Topic({
   name : '/hrmmw',
   messageType : 'custom_interfaces/msg/MmWVitalSignal'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerHRMmW.subscribe(function(message) {
   console.log('Received message on ' + listenerHRMmW.name + ': ' + message.rate);
   //let decoded = decodeMessage(message);
@@ -212,10 +227,10 @@ listenerHRMmW.subscribe(function(message) {
 //Subscribing to a Topic for the cardiofi breathing estimation
 let listenerBRCardiofi = new ROSLIB.Topic({
   ros : ros,
-  name : '/estimativebreath_cardiofi',
+  name : '/breath_estimate_cardiofi',
   messageType : 'std_msgs/msg/Float32'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerBRCardiofi.subscribe(function(message) {
   console.log('Received message on ' + listenerBRCardiofi.name + ': ' + message.data);
   //var decoded = decodeMessage(message);
@@ -225,10 +240,10 @@ listenerBRCardiofi.subscribe(function(message) {
 //Subscribing to a Topic for the cardiofi heart estimation
 let listenerHRCardiofi = new ROSLIB.Topic({
   ros : ros,
-  name : '/estimativeheart_cardiofi',
+  name : '/heart_estimate_cardiofi',
   messageType : 'std_msgs/msg/Float32'
 });
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerHRCardiofi.subscribe(function(message) {
   console.log('Received message on ' + listenerBRCardiofi.name + ': ' + message.data);
   //var decoded = decodeMessage(message);
@@ -275,6 +290,13 @@ let listenerBreathControl = new ROSLIB.Topic({
     messageType : 'custom_interfaces/msg/BreathControl'
 });
 
+// Operator annotation: one message per exhale; the listener below receives it back
+let breath_count = 0;
+breathBtn.addEventListener('click', () => {
+  listenerBreathControl.publish({ timestamp: Date.now() * 1000000 });
+  document.getElementById('breath_count').innerText = ++breath_count;
+});
+
 let breath_buffer = []
 // Windows_size in seconds
 let window_time = 30
@@ -296,7 +318,7 @@ listenerBreathControl.subscribe(function(message) {
             document.getElementById("br_ground_truth").innerText = String(brpm_ground_truth_estimave);
         }
         if (time_no_breath >= 20){
-            document.getElementById("br_ground_truth").innerText = "Apneia";
+            document.getElementById("br_ground_truth").innerText = "Apnea";
         }
         time_no_breath++;
     }, 1000);
@@ -321,67 +343,66 @@ function hideLungBeat() {
 // and message type. Note that we can call publish or subscribe on the same topic object.
 let listenerBR = new ROSLIB.Topic({
   ros : ros,
-  name : '/estimativebreath',
-  messageType : 'custom_interfaces/msg/EstimativeBreath'
+  name : '/breath_estimate',
+  messageType : 'custom_interfaces/msg/BreathEstimate'
 });
 
-// Função callback, chamada sempre que uma nova mensagem é recebida do tópico.
+// Callback, called whenever a new message is received on the topic.
 listenerBR.subscribe(function(message) {
   //console.log('Received message on ' + listenerBR.name + ': ' + message);
   //var decoded = decodeMessage(message);
   var decoded = message;
-  //console.log(message.apneia_detected);
+  //console.log(message.apnea_detected);
   if (! receivedFirstMessage){
       receivedFirstMessage = true
+      // Buffers are full once the first estimate arrives, with or without a subject
+      document.getElementById('loading').style.display = 'none';
   }
 
   if(is_person){
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById("container-resultados").style.display = 'inline';
-    //document.getElementById('results').style.display = 'inline';
     let brValue = document.getElementById('br_value');
 
-    if (decoded.apneia_detected == 1){
-      brValue.classList.add('apneia-value');
+    if (decoded.apnea_detected == 1){
+      brValue.classList.add('apnea-value');
       brValue.classList.remove('normal-value');
-      decoded.breath_estimative = "Apneia";
+      decoded.breath_rate = "Apnea";
     }else{
-      brValue.classList.remove('apneia-value');
+      brValue.classList.remove('apnea-value');
       brValue.classList.add('normal-value');
     }
-    document.getElementById("br_value").innerHTML = decoded.breath_estimative;
+    document.getElementById("br_value").innerHTML = decoded.breath_rate;
   }
 
-  if (graficoHistogramaAtivo)
-      atualizaHistograma(decoded.breath_estimative);
-  if (graficoSinalAtivo)
-      atualizaSinal(decoded.breath_estimative);
-  if (graficoSinalAtivo2)
-      atualizaSinal2(decoded.breath_estimative);
+  if (histogramChartActive)
+      updateHistogram(decoded.breath_rate);
+  if (signalChartActive)
+      updateSignal(decoded.breath_rate);
+  if (signalChartActive2)
+      updateSignal2(decoded.breath_rate);
 });
 
-//controle das abas de navegação
-function ativaGrafico(tpGrafico){
-  switch (tpGrafico) {
-    case "nav-histograma-tab":
-      graficoHistogramaAtivo = true;
-      graficoMapaAtivo = false;
-      graficoMapaMmWAtivo = false;
+// Navigation tab control
+function activateChart(chartType){
+  switch (chartType) {
+    case "nav-histogram-tab":
+      histogramChartActive = true;
+      heatmapChartActive = false;
+      mmwaveHeatmapChartActive = false;
       break;
-    case "nav-sinal-tab":
-      graficoSinalAtivo = true;
-      graficoMapaAtivo = false;
+    case "nav-signal-tab":
+      signalChartActive = true;
+      heatmapChartActive = false;
       break;
-    case "nav-sinal-tabb":
-      graficoSinalAtivo2 = true;
-      graficoMapaAtivo = false;
+    case "nav-signal-tab2":
+      signalChartActive2 = true;
+      heatmapChartActive = false;
       break;
-    case "nav-mapa-tab":
-      graficoMapaAtivo = true;
-      graficoMapaMmWAtivo = false;
+    case "nav-heatmap-tab":
+      heatmapChartActive = true;
+      mmwaveHeatmapChartActive = false;
       break;
-    case "nav-mapa-mmw-tab":
-      graficoMapaMmWAtivo = true;
+    case "nav-heatmap-mmw-tab":
+      mmwaveHeatmapChartActive = true;
       break;
   }
 
@@ -393,36 +414,42 @@ let persistence_request_publisher = new ROSLIB.Topic({
   messageType: 'custom_interfaces/msg/PersistenceRequest'
 });
 
-const form = document.getElementById('metadados_form');
-const form_btn = document.getElementById('btn_persistencia');
+const form = document.getElementById('metadata-form');
+const form_btn = document.getElementById('btn-persistence');
 let num_frames = null;
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  console.log("Botao apertado")
+  console.log("Button pressed")
   if (form.btn_status.value === '0'){
+    // The subject ID becomes part of the capture file name
+    const subject_id = form.subject_id.value.trim();
+    const subject_id_valid = /^[A-Za-z0-9_-]+$/.test(subject_id);
+    document.getElementById('subject_id_error').style.display = subject_id_valid ? 'none' : 'block';
+    if (!subject_id_valid) return;
+
     num_frames = Number(form.num_frames.value);
 
     let request_message = new ROSLIB.Message({
-      nome_coleta: form.nome_coleta.value,
-      nome_paciente: selected_patient, //variável criada em monitoring.html
-      modelo_nic_rx: 'Intel 5300',
-      modelo_nic_tx: 'Intel 5300',
-      posicao_paciente: form.posicao_paciente.value,
-      distancia_antenas_centimetros: Number(form.distancia_antenas_centimetros.value),
+      capture_name: form.capture_name.value,
+      subject_id: subject_id,
+      rx_nic_model: 'Intel 5300',
+      tx_nic_model: 'Intel 5300',
+      subject_position: form.subject_position.value,
+      antenna_distance_cm: Number(form.antenna_distance_cm.value),
       num_frames: num_frames
     });
     
     persistence_request_publisher.publish(request_message);
 
-    form_btn.innerText = 'Cancelar'
+    form_btn.innerText = 'Cancel'
     form_btn.value = '1'
 
-    document.getElementById('barra_progresso').setAttribute('max', form.num_frames.value);
+    document.getElementById('progress-bar').setAttribute('max', form.num_frames.value);
     document.getElementById('progress_div').style.display = 'block';
   }
   // else {
-  //   form_btn.innerText = 'Persistir'
+  //   form_btn.innerText = 'Start Persistence'
   //   form_btn.value = '0'
   // }
 
@@ -435,7 +462,7 @@ let persistence_response_listener = new ROSLIB.Topic({
 });
 
 persistence_response_listener.subscribe((message) => {
-  form_btn.innerText = 'Persistir'
+  form_btn.innerText = 'Start Persistence'
   form_btn.value = '0'
   document.getElementById('progress_div').style.display = 'none';
 });
@@ -447,8 +474,8 @@ let persistence_feedback_listener = new ROSLIB.Topic({
 });
 
 persistence_feedback_listener.subscribe((message) => {
-  document.getElementById('barra_progresso').setAttribute('value', message.captured_frames);
-  document.getElementById('texto_progresso').innerText = `Pacotes: ${message.captured_frames}/${num_frames}`;
+  document.getElementById('progress-bar').setAttribute('value', message.captured_frames);
+  document.getElementById('progress-text').innerText = `Packets: ${message.captured_frames}/${num_frames}`;
 });
 
 // ===================

@@ -1,11 +1,21 @@
 from custom_interfaces.action import Persistence
 from custom_interfaces.msg import PktCSI, HeartControl, BreathControl
-import rclpy, os, time
+import rclpy, os, re, time
 from rclpy.node import Node
 from rclpy.action import ActionServer
 from csi.libs.CsiMsgToDict import CsiMsgToDict
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+
+def _safe(value):
+    # Values come from the web form; keep file names valid on Windows bind mounts.
+    return re.sub(r'[^A-Za-z0-9_-]', '_', str(value))
+
+
+def capture_file_name(req, date, prefix=''):
+    parts = [req.capture_name, req.subject_id, req.rx_nic_model, req.tx_nic_model,
+             req.subject_position, f'{req.antenna_distance_cm}cm']
+    return prefix + '-'.join(_safe(p) for p in parts) + f'-{date}.txt'
 
 
 class Listener(Node):
@@ -84,11 +94,11 @@ class PersistenceAction(Node):
 
     def callback(self, goal_handle):
 
-        self.get_logger().info("Iniciando captura de {}".format(goal_handle.request.num_frames))
+        self.get_logger().info("Starting capture of {} frames".format(goal_handle.request.num_frames))
 
         self.listener_node.clear_buffers()
 
-        data = time.strftime("%d_%m_%Y-%H:%M")
+        date = time.strftime("%d_%m_%Y-%H-%M")
 
         feedback_msg = Persistence.Feedback()
         recv_frames = len(self.listener_node.frame_buffer)
@@ -101,23 +111,23 @@ class PersistenceAction(Node):
             recv_frames = len(self.listener_node.frame_buffer)
 
         current_dir = os.getenv('AIMS')
-        if not os.path.exists(current_dir + '/Capturas'):
-            os.mkdir(current_dir + '/Capturas')
+        if not os.path.exists(current_dir + '/captures'):
+            os.mkdir(current_dir + '/captures')
 
-        nome_captura_csi = f'{goal_handle.request.nome_coleta}-{goal_handle.request.nome_paciente}-{goal_handle.request.modelo_nic_rx}-{goal_handle.request.modelo_nic_tx}-{goal_handle.request.posicao_paciente}-{goal_handle.request.distancia_antenas_centimetros}cm-{data}.txt'
-        with open(f"{os.getenv('AIMS')}/Capturas/{nome_captura_csi}", "w") as f:
+        capture_name_csi = capture_file_name(goal_handle.request, date)
+        with open(f"{os.getenv('AIMS')}/captures/{capture_name_csi}", "w") as f:
             for item in self.listener_node.frame_buffer:
                 f.write(str(CsiMsgToDict(item)) + "\n")
         
         if len(self.listener_node.heartbeat_buffer) > 0:
-            nome_captura_heartbeat = f'Heartbeats-{goal_handle.request.nome_coleta}-{goal_handle.request.nome_paciente}-{goal_handle.request.modelo_nic_rx}-{goal_handle.request.modelo_nic_tx}-{goal_handle.request.posicao_paciente}-{goal_handle.request.distancia_antenas_centimetros}cm-{data}.txt'
-            with open(f"{os.getenv('AIMS')}/Capturas/{nome_captura_heartbeat}", "w") as f:
+            capture_name_heartbeat = capture_file_name(goal_handle.request, date, 'Heartbeats-')
+            with open(f"{os.getenv('AIMS')}/captures/{capture_name_heartbeat}", "w") as f:
                 for item in self.listener_node.heartbeat_buffer:
                     f.write(str(item) + "\n")
 
         if len(self.listener_node.breath_buffer) > 0:
-            nome_captura_breath = f'Breaths-{goal_handle.request.nome_coleta}-{goal_handle.request.nome_paciente}-{goal_handle.request.modelo_nic_rx}-{goal_handle.request.modelo_nic_tx}-{goal_handle.request.posicao_paciente}-{goal_handle.request.distancia_antenas_centimetros}cm-{data}.txt'
-            with open(f"{os.getenv('AIMS')}/Capturas/{nome_captura_breath}", "w") as f:
+            capture_name_breath = capture_file_name(goal_handle.request, date, 'Breaths-')
+            with open(f"{os.getenv('AIMS')}/captures/{capture_name_breath}", "w") as f:
                 for item in self.listener_node.breath_buffer:
                     f.write(str(item) + "\n")
 
@@ -125,7 +135,7 @@ class PersistenceAction(Node):
 
         goal_handle.succeed()
         result = Persistence.Result()
-        result.response = f"Captura ({nome_captura_csi}) salva em '{os.getenv('AIMS')}/Capturas/'"
+        result.response = f"Capture ({capture_name_csi}) saved to '{os.getenv('AIMS')}/captures/'"
         return result
     
 
@@ -140,7 +150,7 @@ def main():
     _multiThreadedExecutor.add_node(persistence_action_server_node)
 
     try:
-        persistence_action_server_node.get_logger().info('PersistenceAction iniciado.')
+        persistence_action_server_node.get_logger().info('PersistenceAction started.')
         _multiThreadedExecutor.spin()
     except KeyboardInterrupt:
         persistence_action_server_node.get_logger().info('PersistenceAction: Keyboard interrupt, shutting down.\n')

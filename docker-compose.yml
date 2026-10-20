@@ -1,0 +1,157 @@
+# =============================================================================
+# AIMS-System Docker Compose
+#
+# Services:
+#   ros2-nodes  — ROS2 processing nodes (CSI publisher, breath estimator, etc.)
+#   rosbridge   — WebSocket bridge between ROS2 DDS and web frontend
+#   web         — Express.js web server (monitoring UI)
+#   vision      — optional camera pose estimation (profile "vision", YOLOv8n-pose)
+#
+# Usage (mock mode needs no .env and no other setup):
+#   docker compose up -d --build  # Build and start (http://localhost:3001)
+#   docker compose logs -f        # Follow all logs
+#   docker compose --profile vision down   # Stop and remove containers
+#   CSI_SOURCE=picoscenes docker compose up -d   # Real PicoScenes frames
+#   docker compose --profile vision up -d --build  # Also start vision (CPU)
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml \
+#     --profile vision up -d --build               # Vision on an NVIDIA GPU
+#
+# Requires Docker Compose >= 2.24 (optional env_file via `required: false`).
+#
+# Networking: services share a user-defined bridge network (DDS discovery
+# between ros2-nodes and rosbridge happens inside it) and publish only the
+# ports the host needs. This works on Linux and on Docker Desktop
+# (Windows/macOS). For distributed multi-machine ROS2 setups, use host
+# networking instead:
+#   docker compose -f docker-compose.yml -f docker-compose.hostnet.yml up -d
+#
+# Note: PicoScenes runs on the host machine (not containerized).
+#       See scripts/host/ for host setup.
+# =============================================================================
+
+x-ros-env: &ros-env
+  RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+  ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-5}
+  FASTRTPS_DEFAULT_PROFILES_FILE: ${FASTRTPS_DEFAULT_PROFILES_FILE:-/app/aims_ws/src/fastdds_profile.xml}
+
+services:
+  # ---------------------------------------------------------------------------
+  # ROS2 Processing Nodes
+  # Receives UDP frames forwarded by PicoScenes on the host (CSI_SOURCE=picoscenes).
+  # ---------------------------------------------------------------------------
+  ros2-nodes:
+    image: aims-system-ros2:latest
+    build:
+      context: .
+      dockerfile: docker/ros2/Dockerfile
+    container_name: aims-ros2-nodes
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *ros-env
+      CSI_SOURCE: ${CSI_SOURCE:-mock}
+      CSI_UDP_HOST: ${CSI_UDP_HOST:-0.0.0.0}
+      CSI_UDP_PORT: ${CSI_UDP_PORT:-1025}
+      AIMS: /app
+    ports:
+      - "${CSI_UDP_PORT:-1025}:${CSI_UDP_PORT:-1025}/udp"
+    volumes:
+      # Capture files land directly in ./captures on the host
+      - ./captures:/app/captures
+      - ./models:/app/models:ro
+    restart: unless-stopped
+    command: ["ros2", "launch", "csi", "aims_launch.py"]
+
+  # ---------------------------------------------------------------------------
+  # Rosbridge WebSocket Server
+  # Bridges ROS2 DDS topics to WebSocket for the web frontend.
+  # ---------------------------------------------------------------------------
+  rosbridge:
+    image: aims-system-ros2:latest
+    build:
+      context: .
+      dockerfile: docker/ros2/Dockerfile
+    container_name: aims-rosbridge
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *ros-env
+    ports:
+      - "${ROSBRIDGE_PORT:-9090}:9090"
+    depends_on:
+      ros2-nodes:
+        condition: service_started
+    restart: unless-stopped
+    command: ["ros2", "launch", "rosbridge_server", "rosbridge_websocket_launch.xml", "port:=9090"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "</dev/tcp/127.0.0.1/9090"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Web Server (Express.js)
+  # Monitoring dashboard. The browser connects to rosbridge directly on
+  # ROSBRIDGE_PORT of the same host (served to it via GET /config).
+  # Healthcheck is defined in docker/web/Dockerfile.
+  # ---------------------------------------------------------------------------
+  web:
+    image: aims-system-web:latest
+    build:
+      context: .
+      dockerfile: docker/web/Dockerfile
+    container_name: aims-web
+    ports:
+      - "${WEB_PORT:-3001}:3001"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      WEB_PORT: 3001
+      ROSBRIDGE_PORT: ${ROSBRIDGE_PORT:-9090}
+    depends_on:
+      rosbridge:
+        condition: service_started
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Vision (optional, profile "vision")
+  # Camera -> YOLOv8n-pose -> ROS 2 topics, CPU by default:
+  #   docker compose --profile vision up -d --build
+  # NVIDIA GPU: add -f docker-compose.gpu.yml (see that file).
+  # No /dev/video0 (Docker Desktop): map /dev/null instead and read a video
+  # file from ./videos:
+  #   VISION_VIDEO_DEVICE=/dev/null VISION_CAMERA=/app/videos/clip.mp4 \
+  #     docker compose --profile vision up -d --build
+  # ---------------------------------------------------------------------------
+  vision:
+    image: aims-system-vision:cpu
+    build:
+      context: .
+      dockerfile: docker/vision/Dockerfile
+    container_name: aims-vision
+    profiles: ["vision"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      <<: *ros-env
+      VISION_DEVICE: ${VISION_DEVICE:-cpu}
+      VISION_CAMERA: ${VISION_CAMERA:-0}
+    devices:
+      - "${VISION_VIDEO_DEVICE:-/dev/video0}:/dev/video0"
+    volumes:
+      # Read-write: a TensorRT export writes yolov8n-pose.engine next to the .pt
+      - ./models:/app/models
+      # Test videos (camera replacement); ./captures is only for capture output
+      - ./videos:/app/videos:ro
+      # Edit vision.yaml on the host, then `docker compose restart vision` (no rebuild)
+      - ./aims_ws/src/vision/vision_bringup/config:/app/aims_ws/install/vision_bringup/share/vision_bringup/config:ro
+    depends_on:
+      rosbridge:
+        condition: service_started
+    restart: unless-stopped

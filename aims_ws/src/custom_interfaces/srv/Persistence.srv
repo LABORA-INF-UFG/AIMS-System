@@ -1,9 +1,9 @@
-string nome_coleta
-string nome_paciente
-string modelo_nic_rx
-string modelo_nic_tx
-string posicao_paciente
-float32 distancia_antenas_metros
+string capture_name
+string subject_id
+string rx_nic_model
+string tx_nic_model
+string subject_position
+float32 antenna_distance_m
 int64 num_frames
 ---
 string response

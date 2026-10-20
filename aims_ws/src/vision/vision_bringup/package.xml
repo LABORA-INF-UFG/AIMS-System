@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>vision_bringup</name>
+  <version>0.1.0</version>
+  <description>Launch file and parameters of the AIMS vision pipeline.</description>
+  <maintainer email="reis0932@gmail.com">Lucas Reis</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+  <exec_depend>pose_estimation</exec_depend>
+  <exec_depend>presence</exec_depend>
+  <exec_depend>moving</exec_depend>
+  <exec_depend>visualization</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

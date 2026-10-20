@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Open Sans', system-ui, -apple-system, sans-serif;
+  --font-primary: 'Source Sans Pro', sans-serif;
+  --font-secondary: 'Poppins', sans-serif;
+
+  --color-primary: #0ea2bd;
+  --color-primary-light: #1ec3e0;
+  --color-primary-dark: #0189a1;
+
+  --color-secondary: #485664;
+  --color-secondary-light: #8f9fae;
+  --color-secondary-dark: #3a4753;
+
+  --color-neutral-dark: #1a1f24;
+  
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom CSS classes for specific layout components */
+@layer utilities {
+  .rate-paragraph {
+    font-size: 24px;
+    font-weight: 600;
+  }
+  .apnea-value {
+    color: #ef4444 !important; /* Tailwind text-red-500 */
+  }
+  .normal-value {
+    color: #1f2937 !important; /* Tailwind text-gray-800 */
+  }
+}

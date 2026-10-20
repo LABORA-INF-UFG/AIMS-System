@@ -23,12 +23,12 @@ class PersistenceBridge(Node):
 
     def send_goal(self, msg):
         goal_msg = Persistence.Goal()
-        goal_msg.nome_coleta = msg.nome_coleta
-        goal_msg.nome_paciente = msg.nome_paciente
-        goal_msg.modelo_nic_rx = msg.modelo_nic_rx
-        goal_msg.modelo_nic_tx = msg.modelo_nic_tx
-        goal_msg.posicao_paciente = msg.posicao_paciente
-        goal_msg.distancia_antenas_centimetros = msg.distancia_antenas_centimetros
+        goal_msg.capture_name = msg.capture_name
+        goal_msg.subject_id = msg.subject_id
+        goal_msg.rx_nic_model = msg.rx_nic_model
+        goal_msg.tx_nic_model = msg.tx_nic_model
+        goal_msg.subject_position = msg.subject_position
+        goal_msg.antenna_distance_cm = msg.antenna_distance_cm
         goal_msg.num_frames = msg.num_frames
 
         self._action_client.wait_for_server()

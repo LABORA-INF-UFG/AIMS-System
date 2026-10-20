@@ -17,16 +17,16 @@ class MockedPktCSIPublisher(Node):
         self.times_published = 0
         self.frames_buffer = []
 
-        # Nome da captura, contida na pasta resource, a ser utilizada
+        # Name of the capture file, located in the resource folder, to be used
         file_name = 'single_csi_frame.txt'
 
         with open(os.getenv('AIMS') + f'/aims_ws/src/csi/csi/resource/{file_name}') as f:
             
-            # Seta o cursor no final do arquivo
+            # Set the cursor to the end of the file
             f.seek(0, 2)
-            # Armazena o tamanho do arquivo
+            # Store the file size
             file_size = f.tell()
-            # Seta o cursor para o início do arquivo
+            # Set the cursor to the start of the file
             f.seek(0, 0)
             
             line = f.readline()
@@ -37,7 +37,7 @@ class MockedPktCSIPublisher(Node):
 
                 current_file_pos = f.tell()
 
-                print(f"Lendo o arquivo CSI... {((current_file_pos/file_size) * 100):.1f}%")
+                print(f"Reading CSI file... {((current_file_pos/file_size) * 100):.1f}%")
 
                 line = f.readline()
 

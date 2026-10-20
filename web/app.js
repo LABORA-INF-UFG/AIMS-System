@@ -1,47 +1,34 @@
-// Node.js deve ter versão 10.23 - 17.x. por causa do rclnodejs
+// AIMS Web Server
+// Express.js backend that serves the monitoring UI.
 
 const express = require('express');
-const path = require('path');
-const mongoose = require('mongoose');
-require('dotenv').config();
 
-const patientRoutes = require('./routes/patientRoutes');
 const monitoringRoutes = require('./routes/monitoringRoutes');
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.WEB_PORT || process.env.PORT || 3001;
+
 const app = express();
 
-// middleware
+// Middleware
 app.use(express.static('public'));
 app.use(express.json());
 
-let dbURI = ''
-switch (process.argv[2]) {
-    case 'development':
-        dbURI = process.env.DB_CONNECTION_STRING_LOCAL
-        break;
-
-    default:
-        dbURI = process.env.DB_CONNECTION_STRING_PROD
-        break;
-}
-
-const options = {
-    dbName: 'mycaredb',
-    useNewUrlParser: true,
-    serverSelectionTimeoutMS: 5000
-};
-
-mongoose.connect(dbURI, options)
-    .then(() => app.listen(PORT, () => {console.log(`Server started at ${PORT}`);}))
-    .catch((error) => console.log(error));
-
-// defining bootstrap routes
-app.use('/css', express.static(path.join(__dirname, 'node_modules/bootstrap/dist/css')))
-app.use('/js', express.static(path.join(__dirname, 'node_modules/bootstrap/dist/js')))
-app.use('/js', express.static(path.join(__dirname, 'node_modules/jquery/dist')))
-
-
-// routes
-app.use(patientRoutes);
+// Routes
 app.use(monitoringRoutes);
+
+// Runtime config for the browser (rosbridge runs on the same host as this page)
+app.get('/config', (req, res) => {
+    res.json({ rosbridgePort: Number(process.env.ROSBRIDGE_PORT) || 9090 });
+});
+
+const server = app.listen(PORT, () => {
+    console.log(`AIMS Web Server started at http://localhost:${PORT}`);
+});
+
+// Handle graceful shutdown
+for (const signal of ['SIGTERM', 'SIGINT']) {
+    process.on(signal, () => {
+        console.log(`${signal} received. Shutting down gracefully...`);
+        server.close(() => process.exit(0));
+    });
+}

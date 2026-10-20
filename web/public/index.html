@@ -6,130 +6,80 @@
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
 
   <title>AIMS - Home</title>
-  <meta content="" name="description">
-  <meta content="" name="keywords">
+  <meta name="description" content="AIMS System - Contactless vital signs monitoring">
 
   <!-- Favicons -->
-  <link href="assets/img/icon.png" rel="icon">
   <link href="assets/img/icon.png" rel="icon">
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600;1,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Source+Sans+Pro:wght@300;400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Vendor CSS Files -->
-  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Vendor Icons -->
   <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
-  <link href="assets/vendor/aos/aos.css" rel="stylesheet">
-  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
-  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
 
-  <!-- Variables CSS Files. Uncomment your preferred color scheme -->
-  <link href="assets/css/variables.css" rel="stylesheet">
-  <!-- <link href="assets/css/variables-blue.css" rel="stylesheet"> -->
-  <!-- <link href="assets/css/variables-green.css" rel="stylesheet"> -->
-  <!-- <link href="assets/css/variables-orange.css" rel="stylesheet"> -->
-  <!-- <link href="assets/css/variables-purple.css" rel="stylesheet"> -->
-  <!-- <link href="assets/css/variables-red.css" rel="stylesheet"> -->
-  <!-- <link href="assets/css/variables-pink.css" rel="stylesheet"> -->
-  <link href="assets/css/main.css" rel="stylesheet">
-
-  <style>
-    body {
-      overflow: hidden;
-    }
-    #main {
-      overflow-y: auto;
-      max-height: calc(100vh - 150px);
-    }
-    .featured-services {
-      padding-bottom: 0;
-    }
-    .footer {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background-color: #f8f9fa;
-      padding: 10px 0;
-      text-align: center;
-    }
-    .service-item {
-      margin-bottom: 10px;
-    }
-  </style>
+  <!-- Tailwind CSS -->
+  <link href="assets/css/tailwind.css" rel="stylesheet">
 </head>
 
-<body>
+<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex flex-col justify-between">
 
   <!-- ======= Header ======= -->
-  <header id="header" class="header fixed-top" data-scrollto-offset="0">
-    <div class="container-fluid d-flex align-items-center justify-content-between">
+  <header id="header" class="bg-white border-b border-gray-200 sticky top-0 z-50 transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center space-x-1">
+        <h1 class="text-2xl font-bold tracking-tight text-gray-900">AIMS<span class="text-primary font-black">.</span></h1>
+      </a>
+    </div>
+  </header>
 
-      <a href="index.html" class="logo d-flex align-items-center scrollto me-auto me-lg-0">
-        <!-- Uncomment the line below if you also wish to use an image logo -->
-        <!-- <img src="assets/img/logo.png" alt=""> -->
-        <h1>AIMS<span>.</span></h1>
+  <!-- ======= Main Content ======= -->
+  <main class="flex-grow flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    
+    <!-- Hero Section -->
+    <div class="text-center max-w-2xl mx-auto mb-12">
+      <h2 class="text-4xl font-extrabold text-gray-900 sm:text-5xl tracking-tight">
+        Welcome to <span class="text-primary">AIMS</span>
+      </h2>
+      <p class="mt-4 text-lg text-gray-600">
+        Contactless real-time monitoring of subjects' vital signs.
+      </p>
+    </div>
+
+    <!-- Featured Services Grid -->
+    <div class="max-w-md w-full mx-auto px-4">
+      
+      <!-- Card: Monitoring -->
+      <a href="/monitoring" class="group relative bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/30 transition-all duration-300 transform hover:-translate-y-1 flex flex-col justify-between h-48">
+        <div>
+          <div class="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors duration-300">
+            <i class="bi bi-activity text-2xl"></i>
+          </div>
+          <h3 class="mt-4 text-xl font-bold text-gray-900 group-hover:text-primary transition-colors duration-300">Monitoring</h3>
+          <p class="mt-2 text-sm text-gray-500">Start monitoring and capturing data.</p>
+        </div>
+        <span class="absolute bottom-6 right-6 text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <i class="bi bi-arrow-right text-lg"></i>
+        </span>
       </a>
 
     </div>
-  </header><!-- End Header -->
-
-  <section id="hero-static" class="hero-static d-flex align-items-center">
-    <div class="container d-flex flex-column justify-content-center align-items-center text-center position-relative" data-aos="zoom-out">
-      <h2>Bem-vindo a  <span>AIMS</span></h2>
-      <p>Monitoramento contactless dos sinais vitais de pacientes.</p>
-    </div>
-  </section>
-
-  <main id="main">
-    <section id="featured-services" class="featured-services">
-      <div class="container">
-        <div class="row gy-2 justify-content-center">
-          <div class="col-xl-3 col-md-6" data-aos="zoom-out">
-            <div class="service-item position-relative">
-              <div class="icon"><i class="bi bi-activity icon"></i></div>
-              <h4><a href="/monitoring" class="stretched-link">Monitoramento</a></h4>
-              <p>Selecione um paciente para iniciar o monitoramento.</p>
-            </div>
-          </div>
-          <div class="col-xl-3 col-md-6" data-aos="zoom-out" data-aos-delay="200">
-            <div class="service-item position-relative">
-              <div class="icon"><i class="bi bi-person"></i></div>
-              <h4><a href="/patients" class="stretched-link">Pacientes</a></h4>
-              <p>Busque por um paciente ou realize um cadastro.</p>
-            </div>
-          </div>
-          <div class="col-xl-3 col-md-6" data-aos="zoom-out" data-aos-delay="400">
-            <div class="service-item position-relative">
-              <div class="icon"><i class="bi bi-calendar4-week icon"></i></div>
-              <h4><a href="/registration" class="stretched-link">Cadastro</a></h4>
-              <p>Cadastre um paciente.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
   </main>
 
-  <footer class="footer">
-    <div class="container">
-      <p>Rodapé</p>
+  <!-- ======= Footer ======= -->
+  <footer class="bg-white border-t border-gray-200 py-6 text-center text-sm text-gray-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <p>&copy; 2026 AIMS System. All rights reserved.</p>
     </div>
   </footer>
 
-  <div id="preloader"></div>
-
-  <!-- Vendor JS Files -->
-  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
-  <script src="assets/vendor/aos/aos.js"></script>
-  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
-  <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
-  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
-  <script src="assets/vendor/php-email-form/validate.js"></script>
-
-  <!-- Main JS File -->
-  <script src="assets/js/main.js"></script>
+  <script>
+    // Simple page fade-in
+    document.addEventListener("DOMContentLoaded", () => {
+      document.body.classList.add("opacity-100");
+    });
+  </script>
 </body>
+
 </html>

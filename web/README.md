@@ -1,93 +1,53 @@
-# AIMS Interface
+# AIMS Web Interface
 
-**AIMS Interface** fornece um sistema em plataforma web para controlar o sistema que faz uso do [ROS2](https://docs.ros.org/en/foxy/).
+The AIMS web interface is an [Express.js](https://expressjs.com/) server that serves the monitoring dashboard for the AIMS ROS2 system. The browser talks to ROS2 directly through [roslibjs](https://github.com/RobotWebTools/roslibjs) and a rosbridge WebSocket server; the Express server does not use ROS and has no database.
 
-Dentre as funcionalidades estão CRUD de _Pacientes_ e a possibilidade de capturar os sinais vitais dos _Pacientes_.
+## What it does
 
-## O sistema
+- `GET /` : landing page.
+- `GET /monitoring` : dashboard with the live charts (breathing estimate, heatmap, ...) and the persistence panel to record CSI captures.
+- `GET /config` : returns `{"rosbridgePort": <number>}`. The browser connects to `ws://<hostname that served the page>:<rosbridgePort>`, so the dashboard also works from another machine on the LAN.
 
-O sistema web é baseado em Express.js para implementar os endpoints. Faz uso da biblioteca [roslibjs](http://wiki.ros.org/roslibjs) diretamente no client-side para se comunicar com o sistema ROS. 
+Captures are identified by a free-text **Subject ID** typed in the persistence form (letters, digits, `_` and `-`). There is no login, patient registry or database.
 
-## Banco de dados
+## Environment variables
 
-[MongoDB](https://www.mongodb.com/) é o banco de dados utilizado. O sistema não inicia se não tiver conexão com o banco.
+| Variable | Default | Description |
+|---|---|---|
+| `WEB_PORT` | `3001` | Port the server listens on (inside Docker it is fixed to 3001 and `WEB_PORT` in the root `.env` sets the published host port) |
+| `ROSBRIDGE_PORT` | `9090` | Port returned by `GET /config` |
+| `NODE_ENV` | `development` | Node.js environment |
 
-Se estiver conectando com um banco de dados novo, será necessário [criar](https://databasefaqs.com/create-tables-in-mongodb/) uma nova _Collection_ chamada "patients".
+See [.env.example](.env.example).
 
-A _string_ de conexão e lida por variáveis de ambiente:
+## Run with Docker (recommended)
 
-- `DB_CONNECTION_STRING_LOCAL`
-- `DB_CONNECTION_STRING_PROD`
-
-O banco padrao atualmente configurado no codigo esta definido no arquivo `app.js`.
-
-###### *Caso esteja rodando uma instância local do MongoDB e encontre problemas ao iniciar ele, cheque [este tópico](https://stackoverflow.com/questions/9884233/mongodb-service-is-not-starting-up)
-
-## Instalação
-
-Clone o repositório e baixe as dependências do projeto com:
+From the repository root:
 
 ```bash
-cd web
-npm install
+docker compose up -d --build
 ```
 
-### Demais dependências
+Open http://localhost:3001. The image compiles the Tailwind CSS during the build.
 
-É necessário ter tanto o ambiente ROS2 devidamente instalado, quanto o [Rosbridge server](http://wiki.ros.org/rosbridge_server).
+## Run locally (without Docker)
 
-Instale o Rosbridge server com o comando (substitua '<ROS_DISTRO>' pela distribuição utilizada (atualmente é a foxy):
-
-```bash
-sudo apt install ros-<ROS_DISTRO>-rosbridge-server
-```
-
-Na dúvida, realize o source do environment novamente (considere o mesmo '<ROS_DISTRO>' utilizado anteriormente):
+You need Node.js 20 and a running rosbridge server, for example from a ROS2 Humble installation:
 
 ```bash
-source /opt/ros/<ROS_DISTRO>/setup.bash
-```
-
-
-
-## Inicialização
-
-Primeiramente, rode o Rosbridge com o comando:
-
-```bash
+sudo apt install ros-humble-rosbridge-server
+source /opt/ros/humble/setup.bash
 ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 ```
 
-Ocorrendo tudo certo, uma saída do comando acima esperada seria:
-
-```
-[INFO] [launch]: All log files can be found below /home/tatuapu/.ros/log/2023-02-24-10-14-44-518595-Destruction-33337
-[INFO] [launch]: Default logging verbosity is set to INFO
-[INFO] [rosbridge_websocket-1]: process started with pid [33338]
-[INFO] [rosapi_node-2]: process started with pid [33340]
-[rosbridge_websocket-1] [INFO] [1677244488.606492483] [rosbridge_websocket]: Rosbridge WebSocket server started on port 9090
-[rosbridge_websocket-1] [INFO] [1677244499.941333337] [rosbridge_websocket]: Client connected. 1 clients total.
-
-```
-
-
-Após possuir uma instância do banco de dados rodando, inicie a aplicação web com:
+Then, in `web/`:
 
 ```bash
-npm run dev
+npm install
+npm run build:css
+npm run dev        # nodemon app.js; use `npm start` for plain node
 ```
 
-Esse comando executa `node app.js development`.
+Expected output: `AIMS Web Server started at http://localhost:3001`.
 
-Ocorrendo tudo certo, uma saída do comando acima esperada seria:
-
-```
-Server started at 3001
-
-```
-
-Assim, o sistema estará disponível no [localhost](http://localhost:3001).
-
-## Execução integrada com ROS2
-
-No fluxo completo do projeto, o launch do ROS2 ([aims_launch.py](../aims_ws/src/csi/launch/aims_launch.py)) já inicia a aplicação web automaticamente.
+For the full system, start the ROS2 nodes too (`ros2 launch csi aims_launch.py`, see [aims_launch.py](../aims_ws/src/csi/launch/aims_launch.py)). The launch file does not start the web server.

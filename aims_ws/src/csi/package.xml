@@ -8,22 +8,9 @@
   <license>Apache License 2.0</license>
 
   <!--
-    Pacotes adicionados aos nós devem ter o nome 
-    da key presente em: 
-    https://github.com/ros/rosdistro/blob/master/rosdep/python.yaml
-
-    python3 -m pip install tensorflow[and-cuda]\
-    scikit-learn\
-    numpy\
-    numba\
-    opencv-python\
-    scipy\
-    pyserial\
-    matplotlib\
-    pynput\
-    oct2py
-
-    Os pacotes python devem ser listados em aims_ws/src/requirements.txt
+    Python dependencies are managed in requirements/core.in (locked in requirements/core.lock).
+    The patched PicoScenes parser is built in docker/ros2/Dockerfile.
+    Octave nodes are experimental and not included in the default build.
   -->
   
   <depend>rclpy</depend>
@@ -33,7 +20,7 @@
   <exec_depend>rosidl_default_runtime</exec_depend>
   <member_of_group>rosidl_interface_packages</member_of_group>
   <depend>action_msgs</depend>
-  <depend>octave</depend>
+  <!-- <depend>octave</depend> removed: experimental nodes only -->
   <exec_depend>ros2launch</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

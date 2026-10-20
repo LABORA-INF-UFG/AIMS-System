@@ -2,11 +2,11 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import String
-from custom_interfaces.msg import EstimativeBreath
+from custom_interfaces.msg import BreathEstimate
 
 import matplotlib.pyplot as plt
 
-fig = plt.figure("AIMS - Respiração")
+fig = plt.figure("AIMS - Breathing")
 ax = fig.add_subplot()
 fig.subplots_adjust(top=0.85)
 
@@ -17,8 +17,8 @@ class BreathPlotter(Node):
         super().__init__('breath_plotter')
 
         self.subscription = self.create_subscription(
-            EstimativeBreath,
-            'estimativebreath',
+            BreathEstimate,
+            'breath_estimate',
             self.listener_callback,
             10)
         self.subscription  # prevent unused variable warning
@@ -32,14 +32,14 @@ class BreathPlotter(Node):
 
         plt.cla()
         
-        ax.text(0, 0.5, "Respiração:", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
-        #ax.text(0.4, 0.5, "{:02d}".format(int(msg.breath_estimative)), fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
-        if not msg.apneia_detected:
-            ax.text(0.4, 0.5, "{:02d}".format(int(msg.breath_estimative)), fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
-            ax.text(0.6, 0.5, "   Respirando   ", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "green"))
+        ax.text(0, 0.5, "Breathing:", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
+        #ax.text(0.4, 0.5, "{:02d}".format(int(msg.breath_rate)), fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
+        if not msg.apnea_detected:
+            ax.text(0.4, 0.5, "{:02d}".format(int(msg.breath_rate)), fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
+            ax.text(0.6, 0.5, "   Breathing   ", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "green"))
         else:
             ax.text(0.4, 0.5, "{:02d}".format(0), fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
-            ax.text(0.6, 0.5, "     Apneia     ", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "red"))
+            ax.text(0.6, 0.5, "     Apnea     ", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "red"))
 
         ax.grid(False)
         ax.axis('off')
@@ -51,8 +51,8 @@ class BreathPlotter(Node):
         # TODO subplots (amp and phase), split amplitude/phase to plot
         #splitted_phase = [msg.csi.phase[i * self.r:self.r + (i * self.r)] for i in range(self.n)]
         #plt.cla()
-        #plt.plot(msg.breath_estimative)
-        #plt.text(0, 0.5, "Respiração:", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
+        #plt.plot(msg.breath_rate)
+        #plt.text(0, 0.5, "Breathing:", fontsize=20, bbox=dict(boxstyle = "square", facecolor = "white"))
         #plt.tight_layout()
         plt.draw()
         plt.pause(0.01)

@@ -1,0 +1,2 @@
+# Only needed to build the PicoScenes parser (builder stage).
+cython<3

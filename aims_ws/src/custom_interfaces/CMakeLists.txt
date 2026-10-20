@@ -34,7 +34,7 @@ set(msg_files
   "msg/PktRxExtraInfo.msg"
   "msg/PktRxBasic.msg"
   "msg/PktTxExtraInfo.msg"
-  "msg/EstimativeBreath.msg"
+  "msg/BreathEstimate.msg"
   "msg/MmWVitalSignal.msg"
   "msg/HeartControl.msg"
   "msg/ApneaAI.msg"

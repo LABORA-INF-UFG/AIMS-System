@@ -1,85 +1,82 @@
+"""
+AIMS Full Launch File.
+
+Launches all ROS2 processing nodes for the AIMS system.
+PicoScenes and the web server are NOT started here — they run
+as separate containers (or on the host for PicoScenes).
+
+The CSI source comes from the csi_source argument (default: $CSI_SOURCE,
+else 'mock'): 'picoscenes' runs the UDP publisher fed by PicoScenes on the
+host; anything else runs the mock publisher.
+
+Usage:
+    ros2 launch csi aims_launch.py [csi_source:=mock|picoscenes]
+"""
+
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler, LogInfo
-from launch.conditions import IfCondition
-from launch.launch_description_sources import AnyLaunchDescriptionSource
-from ament_index_python import get_package_share_directory
+from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import EnvironmentVariable, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
-from launch.event_handlers import OnProcessExit
-from launch.substitutions import EnvironmentVariable
-import os, shutil
 
 
 def generate_launch_description():
-    csi_publisher = Node(
-            package='csi',
-            executable='csi_publisher',
-            condition=IfCondition(
-                [str(shutil.which('PicoScenes') is not None)]
-            )
-        )
+    use_picoscenes = PythonExpression(["'", LaunchConfiguration('csi_source'), "' == 'picoscenes'"])
 
     return LaunchDescription([
-        IncludeLaunchDescription(
-        AnyLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('rosbridge_server'),
-                'launch/rosbridge_websocket_launch.xml'))
+        DeclareLaunchArgument(
+            'csi_source',
+            default_value=EnvironmentVariable('CSI_SOURCE', default_value='mock'),
+            description="CSI input: 'mock' (recorded frame) or 'picoscenes' (UDP from host)",
         ),
-        ExecuteProcess(
-            cmd=[
-                shutil.which('bash'),
-                '-c',
-                'sudo switch5300Firmware csi &> /dev/null; array_prepare_for_picoscenes 2 "5180 HT20"; PicoScenes -d debug -i wlp2s0 --mode logger --forward-to 127.0.0.1:1025'
-            ],
-            name='picoscenes'
+
+        # CSI Publisher (real — CSI_SOURCE=picoscenes)
+        Node(
+            package='csi',
+            executable='csi_publisher',
+            name='csi_publisher',
+            output='screen',
+            condition=IfCondition(use_picoscenes),
         ),
+
+        # CSI Publisher (mock — default)
         Node(
             package='csi',
             executable='mock_csi',
-            condition=IfCondition(
-                [str(shutil.which('PicoScenes') is None)]
-            )
+            name='mock_csi_publisher',
+            output='screen',
+            condition=UnlessCondition(use_picoscenes),
         ),
-        csi_publisher,
+
+        # Breath estimation from CSI data
         Node(
             package='csi',
-            executable='breath_estimator'
+            executable='breath_estimator',
+            name='breath_estimator',
+            output='screen',
         ),
+
+        # CSI data persistence (action server)
         Node(
             package='csi',
-            executable='persistence_action'
+            executable='persistence_action',
+            name='persistence_action',
+            output='screen',
         ),
+
+        # Persistence bridge (for web interaction)
         Node(
             package='csi',
-            executable='persistence_bridge'
+            executable='persistence_bridge',
+            name='persistence_bridge',
+            output='screen',
         ),
+
+        # CSI heatmap image publisher
         Node(
             package='csi',
-            executable='csi_heatmap_publisher'
+            executable='csi_heatmap_publisher',
+            name='csi_heatmap_publisher',
+            output='screen',
         ),
-        ExecuteProcess(
-            cmd=[
-                shutil.which('bash'),
-                '-c',
-                'npm run dev'
-            ],
-            cwd=(os.getenv('AIMS') + '/web'),
-            name='node'
-        ),
-        ExecuteProcess(
-            cmd=[
-                shutil.which('xdg-open'),
-                'http://localhost:3001',
-            ],
-            name='browser'
-        ),
-        RegisterEventHandler(
-            OnProcessExit(
-                target_action=csi_publisher,
-                on_exit=[
-                    LogInfo(msg=(EnvironmentVariable(name='USER'),
-                            ' closed the turtlesim window'))
-                ]
-            )
-        )
     ])

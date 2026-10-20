@@ -64,7 +64,7 @@ class MmWPublisher(Node):
 					image_msg.width = 48 * scale_factor
 					image_msg.data = encoded_image.tobytes()
 					self.publisher_heatmap.publish(image_msg)
-					#self.get_logger().info('MMWave heatmap publicado.')
+					#self.get_logger().info('MMWave heatmap published.')
 				else:
 					self.get_logger().error('Failed to encode image.')
 

@@ -1,0 +1,24 @@
+# Optional systemd unit: start the PicoScenes receiver (scripts/host/picoscenes_rx.sh)
+# at boot and restart it if it fails. Settings come from the repo .env.
+#
+# Install (replace /opt/AIMS-System with the path of your clone):
+#   sudo cp scripts/host/aims-picoscenes-rx.service /etc/systemd/system/
+#   sudo sed -i 's#/opt/AIMS-System#'"$PWD"'#' /etc/systemd/system/aims-picoscenes-rx.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now aims-picoscenes-rx
+# Logs:      journalctl -u aims-picoscenes-rx -f
+# Uninstall: sudo systemctl disable --now aims-picoscenes-rx && sudo rm /etc/systemd/system/aims-picoscenes-rx.service
+
+[Unit]
+Description=AIMS PicoScenes CSI receiver (UDP forwarding to ros2-nodes)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/AIMS-System/scripts/host/picoscenes_rx.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

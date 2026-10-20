@@ -6,12 +6,17 @@ import time, socket, sys, os
 #from std_msgs.msg import String
 import custom_interfaces.msg as PktCSI
 
-sys.path.append(os.getenv('AIMS'))
-from PicoscenesToolbox.picoscenes import Picoscenes
+sys.path.append(os.getenv('AIMS', '/app'))
+try:
+    from PicoscenesToolbox.picoscenes import Picoscenes
+except ImportError as e:
+    sys.exit(f'csi_publisher: cannot import the PicoScenes parser from $AIMS/PicoscenesToolbox ({e}). '
+             'It is built into the ros2 Docker image; rebuild it with "docker compose build".')
 
-localIP = "127.0.0.1"
-localPort = 1025
-bufferSize = 8192
+localIP = os.getenv('CSI_UDP_HOST', '0.0.0.0')
+localPort = int(os.getenv('CSI_UDP_PORT', '1025'))
+bufferSize = 65535  # max UDP datagram, so large frames are never truncated
+recvTimeout = 1.0  # seconds; keeps the executor responsive when no frames arrive
 
 class PktCSIPublisher(Node):
 
@@ -24,13 +29,27 @@ class PktCSIPublisher(Node):
 
         self.UDPServerSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
         self.UDPServerSocket.bind((localIP, localPort))
+        self.UDPServerSocket.settimeout(recvTimeout)
+        self.get_logger().info(f'Waiting for PicoScenes UDP frames on {localIP}:{localPort}')
 
     def timer_callback(self):
+        try:
+            frame_in_bytes = self.UDPServerSocket.recv(bufferSize)
+        except socket.timeout:
+            self.get_logger().warn(f'No PicoScenes UDP frames on {localIP}:{localPort} yet',
+                                   throttle_duration_sec=10)
+            return
 
-        frame_in_bytes = self.UDPServerSocket.recv(bufferSize)
-        frames = Picoscenes(frame_in_bytes)
+        try:
+            self.publish_frame(Picoscenes(frame_in_bytes))
+        except Exception as e:
+            # A malformed or incomplete frame must not kill the node; skip it.
+            self.get_logger().error(f'Could not parse PicoScenes frame ({len(frame_in_bytes)} bytes): {e!r}',
+                                    throttle_duration_sec=5)
 
-        # ============ Frame ============== 
+    def publish_frame(self, frames):
+
+        # ============ Frame ==============
         
         # RxSBasic
         rx_basic_structure = frames.raw[0].get("RxSBasic")

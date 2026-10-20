@@ -22,7 +22,6 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Image
-from ultralytics import YOLO
 from vision_interfaces.msg import PoseKeypoints
 
 # COCO keypoint order used by YOLOv8-pose.
@@ -50,6 +49,8 @@ class PoseEstimation(Node):
     def __init__(self):
         super().__init__('pose_estimation')
         self.device = self.declare_parameter('device', 'cpu').value
+        # 'ultralytics' (PyTorch, any device) or 'tensorrt' (plain TensorRT, Jetson image)
+        self.backend = self.declare_parameter('backend', 'ultralytics').value
         model_path = self.declare_parameter(
             'model_path', '/app/models/vision/yolov8n-pose.pt').value
         camera = self.declare_parameter('camera', '0').value
@@ -61,18 +62,34 @@ class PoseEstimation(Node):
         rate_hz = self.declare_parameter('rate_hz', 15.0).value
         self.publish_image = self.declare_parameter('publish_image', True).value
 
-        model_path = resolve_model_path(model_path, self.device)
-        if not os.path.exists(model_path):
-            raise FileNotFoundError(f'Pose model not found: {model_path}')
-        self.model = YOLO(model_path, task='pose')
-        # Warm-up inference: fails fast on a bad device and tells which device is really used.
-        self.model(np.zeros((height, width, 3), np.uint8), verbose=False,
-                   imgsz=self.imgsz, device=self.device)
-        self.get_logger().info(
-            f'Model {model_path} running on device {self.model.predictor.device}')
+        if self.backend == 'tensorrt':
+            from .trt_pose import TrtPose
+            self.model = TrtPose(model_path, log=self.get_logger().info)
+            self.predict = self.model
+            # Warm-up inference: the first TensorRT run is slower.
+            self.predict(np.zeros((height, width, 3), np.uint8))
+            self.get_logger().info(
+                f'Model {self.model.engine_path} running on TensorRT (GPU)')
+        elif self.backend == 'ultralytics':
+            from ultralytics import YOLO
+            model_path = resolve_model_path(model_path, self.device)
+            if not os.path.exists(model_path):
+                raise FileNotFoundError(f'Pose model not found: {model_path}')
+            self.model = YOLO(model_path, task='pose')
+            self.predict = self.predict_ultralytics
+            # Warm-up inference: fails fast on a bad device and tells which device is really used.
+            self.model(np.zeros((height, width, 3), np.uint8), verbose=False,
+                       imgsz=self.imgsz, device=self.device)
+            self.get_logger().info(
+                f'Model {model_path} running on device {self.model.predictor.device}')
+        else:
+            raise ValueError(f"Unknown backend '{self.backend}' (ultralytics or tensorrt)")
 
-        self.is_file = not camera.isdigit()
-        if not self.is_file:
+        self.is_file = not camera.isdigit() and camera != 'oak'
+        if camera == 'oak':
+            from .oak_camera import OakCamera
+            self.cap = OakCamera(width, height, fps, log=self.get_logger().info)
+        elif not self.is_file:
             self.cap = cv2.VideoCapture(int(camera), cv2.CAP_V4L2)
             self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
@@ -119,7 +136,7 @@ class PoseEstimation(Node):
             return
         self.failed_reads = 0
 
-        results = self.model(frame, verbose=False, imgsz=self.imgsz, device=self.device)
+        person = self.predict(frame)
 
         msg = PoseKeypoints()
         msg.header.stamp = stamp
@@ -128,13 +145,8 @@ class PoseEstimation(Node):
         msg.keypoints = [Point() for _ in KEYPOINT_NAMES]
         msg.confidence = [0.0] * len(KEYPOINT_NAMES)
 
-        kpts = results[0].keypoints
-        if kpts is not None and kpts.conf is not None and len(kpts.data) > 0:
-            # Keep only the main person: the largest bounding box.
-            boxes = results[0].boxes.xywh.cpu().numpy()
-            main = int(np.argmax(boxes[:, 2] * boxes[:, 3]))
-            xyn = kpts.xyn[main].cpu().numpy()
-            conf = kpts.conf[main].cpu().numpy()
+        if person is not None:
+            xyn, conf = person
             for i, ((x, y), c) in enumerate(zip(xyn, conf)):
                 if c >= self.conf_threshold:
                     msg.keypoints[i] = Point(x=float(x), y=float(y))
@@ -145,6 +157,17 @@ class PoseEstimation(Node):
             image = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
             image.header = msg.header
             self.image_pub.publish(image)
+
+    def predict_ultralytics(self, frame):
+        """Return (xyn, conf) of the main person in a BGR frame, or None."""
+        results = self.model(frame, verbose=False, imgsz=self.imgsz, device=self.device)
+        kpts = results[0].keypoints
+        if kpts is None or kpts.conf is None or len(kpts.data) == 0:
+            return None
+        # Keep only the main person: the largest bounding box.
+        boxes = results[0].boxes.xywh.cpu().numpy()
+        main = int(np.argmax(boxes[:, 2] * boxes[:, 3]))
+        return kpts.xyn[main].cpu().numpy(), kpts.conf[main].cpu().numpy()
 
     def destroy_node(self):
         self.cap.release()

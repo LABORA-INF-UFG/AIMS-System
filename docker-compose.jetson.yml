@@ -1,0 +1,9 @@
+services:
+  vision:
+    image: aims-system-vision:jetson
+    build:
+      dockerfile: docker/vision/Dockerfile.jetson
+    runtime: nvidia
+    environment:
+      VISION_DEVICE: ${VISION_DEVICE:-cuda:0}
+      VISION_BACKEND: ${VISION_BACKEND:-tensorrt}

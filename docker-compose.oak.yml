@@ -1,0 +1,9 @@
+services:
+  vision:
+    devices: !reset []
+    device_cgroup_rules:
+      - "c 189:* rmw"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+    environment:
+      VISION_CAMERA: ${VISION_CAMERA:-oak}

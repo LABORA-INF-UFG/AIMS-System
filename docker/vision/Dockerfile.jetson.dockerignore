@@ -1,0 +1,12 @@
+*
+!aims_ws/src/vision/
+!aims_ws/src/fastdds_profile.xml
+!requirements/vision-jetson.lock
+!docker/ros2/entrypoint.sh
+
+# Never ship weights, exported engines or Python caches
+**/*.pt
+**/*.engine
+**/*.onnx
+**/*.tflite
+**/__pycache__

@@ -53,6 +53,7 @@ services:
       CSI_SOURCE: ${CSI_SOURCE:-mock}
       CSI_UDP_HOST: ${CSI_UDP_HOST:-0.0.0.0}
       CSI_UDP_PORT: ${CSI_UDP_PORT:-1025}
+      CSI_MAC_FILTER: ${CSI_MAC_FILTER:-}
       AIMS: /app
     ports:
       - "${CSI_UDP_PORT:-1025}:${CSI_UDP_PORT:-1025}/udp"

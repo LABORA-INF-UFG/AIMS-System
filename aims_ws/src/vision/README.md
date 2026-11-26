@@ -35,9 +35,10 @@ to [0, 1]; a keypoint below `conf_threshold` is reported as (0, 0) with confiden
 | Node | Parameter | Default | Meaning |
 | --- | --- | --- | --- |
 | `pose_estimation` | `device` | `cpu` | `cpu` or `cuda:0` |
+| | `backend` | `ultralytics` | `ultralytics` (PyTorch) or `tensorrt` (Jetson image: loads `<stem>.jetson.engine`, built from `<stem>.onnx` when missing) |
 | | `model_path` | `/app/models/vision/yolov8n-pose.pt` | On GPU, a `.engine` with the same stem next to it is used instead |
-| | `camera` | `"0"` | Device index or video file path (files loop) |
-| | `width`, `height`, `fps` | 352, 288, 30 | Real cameras only (V4L2, MJPG) |
+| | `camera` | `"0"` | Device index, video file path (files loop) or `oak` (Luxonis OAK through depthai; Jetson image only) |
+| | `width`, `height`, `fps` | 352, 288, 30 | Real cameras only (V4L2 MJPG, or the OAK color preview, center-cropped) |
 | | `imgsz` | 320 | Inference size |
 | | `conf_threshold` | 0.4 | Minimum keypoint confidence |
 | | `rate_hz` | 15 | Inference rate |
@@ -63,7 +64,7 @@ colcon build && source install/setup.bash
 ros2 launch vision_bringup vision.launch.py device:=cpu camera:=0
 ```
 
-`device` defaults to `$VISION_DEVICE` and `camera` to `$VISION_CAMERA` (else `cpu` and `0`).
+`device` defaults to `$VISION_DEVICE`, `camera` to `$VISION_CAMERA` and `backend` to `$VISION_BACKEND` (else `cpu`, `0` and `ultralytics`).
 Pass a video path as `camera` to test without a camera.
 
 Under Docker the `config/` folder is mounted over the installed copy: edit `vision.yaml`, then `docker compose restart vision`.

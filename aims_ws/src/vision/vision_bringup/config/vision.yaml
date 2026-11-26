@@ -1,8 +1,9 @@
 # Parameters of the AIMS vision pipeline.
-# device and camera are overridden by the launch arguments of vision.launch.py.
+# device, camera and backend are overridden by the launch arguments of vision.launch.py.
 pose_estimation:
   ros__parameters:
     device: "cpu"            # "cpu" or "cuda:0"
+    backend: "ultralytics"   # "ultralytics" or "tensorrt" (Jetson image: <stem>.onnx -> <stem>.jetson.engine)
     model_path: "/app/models/vision/yolov8n-pose.pt"
     camera: "0"              # device index (e.g. "0") or video file path
     width: 352               # real cameras only

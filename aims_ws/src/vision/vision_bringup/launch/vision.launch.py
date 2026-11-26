@@ -17,8 +17,10 @@ Launch the AIMS vision pipeline.
 
 Usage:
     ros2 launch vision_bringup vision.launch.py [device:=cpu|cuda:0] [camera:=0|/path/video.mp4]
+        [backend:=ultralytics|tensorrt]
 
-device defaults to $VISION_DEVICE, else 'cpu'; camera defaults to $VISION_CAMERA, else '0'.
+device defaults to $VISION_DEVICE, else 'cpu'; camera defaults to $VISION_CAMERA, else '0';
+backend defaults to $VISION_BACKEND, else 'ultralytics'.
 """
 
 from launch import LaunchDescription
@@ -35,12 +37,16 @@ def generate_launch_description():
     overrides = {
         'device': ParameterValue(LaunchConfiguration('device'), value_type=str),
         'camera': ParameterValue(LaunchConfiguration('camera'), value_type=str),
+        'backend': ParameterValue(LaunchConfiguration('backend'), value_type=str),
     }
     return LaunchDescription([
         DeclareLaunchArgument(
             'device', default_value=EnvironmentVariable('VISION_DEVICE', default_value='cpu')),
         DeclareLaunchArgument(
             'camera', default_value=EnvironmentVariable('VISION_CAMERA', default_value='0')),
+        DeclareLaunchArgument(
+            'backend',
+            default_value=EnvironmentVariable('VISION_BACKEND', default_value='ultralytics')),
         Node(package='pose_estimation', executable='pose_estimation', name='pose_estimation',
              parameters=[config, overrides], output='screen',
              on_exit=Shutdown(reason='pose_estimation exited')),

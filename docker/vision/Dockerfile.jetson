@@ -1,0 +1,45 @@
+FROM dustynv/ros:humble-ros-base-l4t-r32.7.1@sha256:110e55a4671fd90ad47dc1ab19fd67a98c780307e38ba4a4acc3c5efe317adc1
+
+SHELL ["/bin/bash", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG TRT_PYTHON_DEB=python3-libnvinfer_8.0.1-1+cuda10.2_arm64.deb
+ARG TRT_PYTHON_SHA256=33733fa94ebeaa8a114140a0ee3485b7982c067adad09f93a0f9a157870608ed
+RUN curl -fsSL -o /tmp/trt.deb \
+        "https://repo.download.nvidia.com/jetson/common/pool/main/t/tensorrt/${TRT_PYTHON_DEB}" && \
+    echo "${TRT_PYTHON_SHA256}  /tmp/trt.deb" | sha256sum -c - && \
+    dpkg-deb -x /tmp/trt.deb /opt/tensorrt-python && \
+    rm /tmp/trt.deb
+ENV PYTHONPATH=/opt/tensorrt-python/usr/lib/python3.6/dist-packages
+ENV LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+
+COPY requirements/vision-jetson.lock /tmp/vision.lock
+RUN pip3 install --no-cache-dir --no-deps --require-hashes -r /tmp/vision.lock && \
+    rm /tmp/vision.lock
+
+RUN printf 'source /opt/ros/%s/install/setup.bash\n' "$ROS_DISTRO" > /opt/ros/${ROS_DISTRO}/setup.bash
+
+COPY aims_ws/src/vision/ /app/aims_ws/src/vision/
+WORKDIR /app/aims_ws
+RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
+    colcon build --packages-up-to vision_bringup && \
+    rm -rf build/ log/
+
+COPY aims_ws/src/fastdds_profile.xml /app/aims_ws/src/fastdds_profile.xml
+
+COPY docker/ros2/entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+RUN printf '#!/bin/bash\nexec /entrypoint.sh /opt/ros/%s/install/bin/ros2 "$@"\n' "$ROS_DISTRO" > /usr/local/bin/ros2 && \
+    chmod +x /usr/local/bin/ros2
+
+ENV RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+ENV FASTRTPS_DEFAULT_PROFILES_FILE=/app/aims_ws/src/fastdds_profile.xml
+ENV ROS_DOMAIN_ID=5
+ENV VISION_BACKEND=tensorrt
+ENV VISION_DEVICE=cuda:0
+
+VOLUME ["/app/models"]
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["ros2", "launch", "vision_bringup", "vision.launch.py"]

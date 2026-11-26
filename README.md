@@ -105,6 +105,7 @@ The vision pipeline runs in its own image behind the Compose profile `vision`, s
 | `aims-system-ros2` (core) | 2.15 GB | `docker compose build` |
 | `aims-system-vision:cpu` | 4.1 GB | `docker compose --profile vision build` |
 | `aims-system-vision:cuda` | 14.3 GB | `docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile vision build` |
+| `aims-system-vision:jetson` | 2.1 GB | `docker compose -f docker-compose.yml -f docker-compose.jetson.yml --profile vision build` |
 
 **CPU** (default; needs a camera at `/dev/video0` on a Linux host):
 
@@ -119,6 +120,16 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile vision 
 ```
 
 The host needs the NVIDIA driver plus the NVIDIA Container Toolkit (Linux), or Docker Desktop with WSL2 GPU support (Windows). Optionally export a TensorRT engine for the GPU; see [models/README.md](models/README.md).
+
+**NVIDIA Jetson on JetPack 4.6** (L4T R32.x, such as a Jetson Nano; tested on a Nano with L4T R32.6.1). JetPack 4 has CUDA 10.2 and Python 3.6, so the `:cuda` image does not run there. The `:jetson` image runs YOLOv8n-pose on plain TensorRT 8.0:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.jetson.yml --profile vision up -d --build   # or: make up-vision-jetson
+```
+
+For an OAK camera, add `-f docker-compose.oak.yml`. It sets `VISION_CAMERA=oak` and gives the container the USB bus. Only the Jetson image ships depthai so far.
+
+The first start builds `models/vision/yolov8n-pose.jetson.engine`, which takes about 10 minutes on a Nano; later starts load it in seconds. On the Nano an inference takes about 34 ms at `imgsz` 320. 
 
 **Video file instead of a camera** (Docker Desktop has no webcam; also useful for tests). Put a video in `./videos` (mounted read-only; `./captures` is only for capture output), then map `/dev/null` in place of the camera device and point `VISION_CAMERA` at the file (it loops):
 
@@ -136,7 +147,7 @@ In Git Bash on Windows, prefix the command with `MSYS_NO_PATHCONV=1`, otherwise 
 docker compose -f docker-compose.yml -f docker-compose.hostnet.yml --profile vision up -d --build --no-deps vision
 ```
 
-Add `-f docker-compose.gpu.yml` as a third file for a GPU.
+Add `-f docker-compose.gpu.yml` (or `-f docker-compose.jetson.yml` on a Jetson) as a third file for a GPU.
 
 When the first `/is_moving` arrives, the dashboard shows a movement pill (Moving / Still); before that it shows "Waiting for camera". The Camera tab shows the frames of `/vision_image` with the keypoint overlay, and the camera counts for presence while the node `/pose_estimation` exists.
 
@@ -166,7 +177,8 @@ All variables are optional: each has a built-in default (the value shown). To ch
 | `NODE_ENV` | `development` | web | Node.js environment |
 | `ROSBRIDGE_PORT` | `9090` | rosbridge, web | Host port of the rosbridge WebSocket; the web server hands it to the browser via `GET /config` |
 | `VISION_DEVICE` | `cpu` (`cuda:0` with `docker-compose.gpu.yml`) | vision | Inference device of `pose_estimation`: `cpu` or `cuda:0` |
-| `VISION_CAMERA` | `0` | vision | Camera index (`0` is `/dev/video0`) or a video file path inside the container, such as `/app/videos/clip.mp4` |
+| `VISION_BACKEND` | `ultralytics` (`tensorrt` with `docker-compose.jetson.yml`) | vision | Inference backend of `pose_estimation`: `ultralytics` (PyTorch) or `tensorrt` (plain TensorRT, Jetson image) |
+| `VISION_CAMERA` | `0` (`oak` with `docker-compose.oak.yml`) | vision | Camera index (`0` is `/dev/video0`), a video file path inside the container, such as `/app/videos/clip.mp4`, or `oak` for a Luxonis OAK camera |
 | `VISION_VIDEO_DEVICE` | `/dev/video0` | vision | Host device mapped to `/dev/video0` in the container; set to `/dev/null` when there is no camera |
 | `PICOSCENES_FORWARD_HOST` | `127.0.0.1` | host scripts | Where `picoscenes_rx.sh` forwards frames |
 | `PICOSCENES_FORWARD_PORT` | `1025` | host scripts | UDP port to forward to |

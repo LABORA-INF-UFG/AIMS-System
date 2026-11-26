@@ -8,6 +8,8 @@ This directory is mounted into the containers at `/app/models`: read-only in `ro
 |---|---|---|
 | `vision/yolov8n-pose.pt` | yes (about 6.8 MB) | `pose_estimation` (YOLOv8n-pose, 17 COCO keypoints), on CPU and on GPU |
 | `vision/yolov8n-pose.engine` | no, you export it | `pose_estimation` on a GPU, if present |
+| `vision/yolov8n-pose.onnx` | yes (about 13 MB) | Jetson image only: source of the engine below |
+| `vision/yolov8n-pose.jetson.engine` | no, built on first start | `pose_estimation` with `backend: tensorrt` (Jetson image) |
 
 The node reads `model_path` from `aims_ws/src/vision/vision_bringup/config/vision.yaml` (default `/app/models/vision/yolov8n-pose.pt`). When `device` is not `cpu` and a `.engine` with the same name stem exists next to the `.pt`, the engine is loaded instead. The node logs the model and device it uses at startup.
 
@@ -24,7 +26,17 @@ docker run --rm --gpus all --entrypoint bash \
 
 The script exports with `int8=True` and `imgsz=320` and writes `models/vision/yolov8n-pose.engine`. Then start vision as usual with `make up-vision-gpu`.
 
-`.gitignore` ignores `*.engine`, `*.onnx` and `*.cache` under `models/`: an engine works only on the GPU and TensorRT version that built it, so it is never committed.
+### Jetson (JetPack 4.6) ONNX and engine
+
+The Jetson image (`docker-compose.jetson.yml`) has no PyTorch, so it cannot read the `.pt`. Its `pose_estimation` runs with `backend: tensorrt`: it loads `<stem>.jetson.engine` next to `model_path` and, when the engine is missing, builds it (FP16) from `<stem>.onnx`. The ONNX is in the repository; after changing the `.pt`, export it again with Docker, on the Jetson or on any PC:
+
+```bash
+scripts/vision/export_onnx.sh
+```
+
+The script pins torch 2.2.2 and onnx 1.16.2 without onnxslim: newer versions die with "Illegal instruction" on the Nano's Cortex-A57. Building the engine takes about 10 minutes on a Nano, on the first start of the vision container. After a new ONNX or a JetPack upgrade, delete `yolov8n-pose.jetson.engine` so it is rebuilt.
+
+`.gitignore` ignores `*.engine`, `*.onnx` and `*.cache` under `models/`, except `vision/yolov8n-pose.onnx`: an engine works only on the GPU and TensorRT version that built it, so it is never committed.
 
 ## Apnea detection model (no longer used)
 

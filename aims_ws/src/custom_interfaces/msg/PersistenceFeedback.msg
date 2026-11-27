@@ -1,1 +1,2 @@
-uint32 captured_frames
+uint32 elapsed_s
+uint32 csi_frames

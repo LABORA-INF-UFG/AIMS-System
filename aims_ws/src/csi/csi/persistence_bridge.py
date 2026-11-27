@@ -29,7 +29,7 @@ class PersistenceBridge(Node):
         goal_msg.tx_nic_model = msg.tx_nic_model
         goal_msg.subject_position = msg.subject_position
         goal_msg.antenna_distance_cm = msg.antenna_distance_cm
-        goal_msg.num_frames = msg.num_frames
+        goal_msg.duration_s = msg.duration_s
 
         self._action_client.wait_for_server()
 
@@ -59,9 +59,9 @@ class PersistenceBridge(Node):
 
     def feedback_callback(self, feedback_msg):
         msg = PersistenceFeedback()
-        msg.captured_frames = feedback_msg.feedback.captured_frames
+        msg.elapsed_s = feedback_msg.feedback.elapsed_s
+        msg.csi_frames = feedback_msg.feedback.csi_frames
         self.publisher_feedback.publish(msg)
-        #self.get_logger().info('Received feedback: {0}'.format(feedback_msg.feedback.captured_frames))
 
 
 def main(args=None):

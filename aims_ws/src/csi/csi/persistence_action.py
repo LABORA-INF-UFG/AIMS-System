@@ -1,143 +1,109 @@
+"""Action server that records every configured source topic to a folder."""
+
+import os
+import threading
+import time
+
+from ament_index_python.packages import get_package_share_directory
 from custom_interfaces.action import Persistence
-from custom_interfaces.msg import PktCSI, HeartControl, BreathControl
-import rclpy, os, re, time
-from rclpy.node import Node
-from rclpy.action import ActionServer
-from csi.libs.CsiMsgToDict import CsiMsgToDict
-from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+import rclpy
+from rclpy.action import ActionServer, GoalResponse
+from rclpy.callback_groups import (MutuallyExclusiveCallbackGroup,
+                                   ReentrantCallbackGroup)
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, QoSProfile
+from rosidl_runtime_py.utilities import get_message
 
-def _safe(value):
-    # Values come from the web form; keep file names valid on Windows bind mounts.
-    return re.sub(r'[^A-Za-z0-9_-]', '_', str(value))
+from .capture_writers import Capture, load_sources
 
-
-def capture_file_name(req, date, prefix=''):
-    parts = [req.capture_name, req.subject_id, req.rx_nic_model, req.tx_nic_model,
-             req.subject_position, f'{req.antenna_distance_cm}cm']
-    return prefix + '-'.join(_safe(p) for p in parts) + f'-{date}.txt'
-
-
-class Listener(Node):
-
-    def __init__(self):
-        super().__init__('persistence_csi_subscriber')
-
-        self.subscription = self.create_subscription(
-            PktCSI,
-            'pktcsi',
-            self.csi_listener_callback,
-            10,
-            callback_group= MutuallyExclusiveCallbackGroup())
-        self.subscription  # prevent unused variable warning
-        self.frame_buffer = []
-
-        self._heart_subscription = self.create_subscription(
-            HeartControl,
-            'heart_control',
-            self.heartbeat_listener_callback,
-            10,
-            callback_group= MutuallyExclusiveCallbackGroup())
-        self.subscription  # prevent unused variable warning
-        self.heartbeat_buffer = []
-
-        self._breath_subscription = self.create_subscription(
-            BreathControl,
-            'breath_control',
-            self.breath_listener_callback,
-            10,
-            callback_group= MutuallyExclusiveCallbackGroup())
-        self.breath_buffer = []
-
-
-    def csi_listener_callback(self, msg):
-        #self.get_logger().info('I heard CSI>>: "%s"' % msg.pktid)
-        self.frame_buffer.append(msg)
-
-    def heartbeat_listener_callback(self, msg):
-        self.get_logger().info('I heard a heartbeat, you are alive :)')
-        self.heartbeat_buffer.append(
-            {
-                'timestamp': msg.timestamp,
-                'pktid': self.frame_buffer[-1].pktid
-            }
-        )
-
-    def breath_listener_callback(self, msg):
-        self.get_logger().info('I received a breath, you are alive :)')
-        self.breath_buffer.append(
-            {
-                'timestamp': msg.timestamp,
-                'pktid': self.frame_buffer[-1].pktid
-            }
-        )
-
-    def clear_buffers(self):
-        self.frame_buffer = []
-        self.heartbeat_buffer = []
-        self.breath_buffer = []
-
+LATCHED = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+# Deep queue so CSI bursts are not dropped while a part is written.
+STREAM = QoSProfile(depth=100)
 
 
 class PersistenceAction(Node):
 
     def __init__(self):
         super().__init__('persistence_action')
+        default = os.path.join(get_package_share_directory('csi'),
+                               'config', 'capture_sources.yaml')
+        self.sources_file = self.declare_parameter(
+            'sources_file', default).value
+        self._busy = False
+        self._busy_lock = threading.Lock()
+        self._sub_group = ReentrantCallbackGroup()
         self._action_server = ActionServer(
             self,
             Persistence,
             'persist_csi',
-            self.callback)
-        
-        self.listener_node = Listener()
+            execute_callback=self.execute,
+            goal_callback=self.on_goal,
+            callback_group=MutuallyExclusiveCallbackGroup())
 
+    def on_goal(self, goal_request):
+        with self._busy_lock:
+            if self._busy:
+                self.get_logger().warn('Capture running; goal rejected.')
+                return GoalResponse.REJECT
+            self._busy = True
+            return GoalResponse.ACCEPT
 
-    def callback(self, goal_handle):
+    def execute(self, goal_handle):
+        try:
+            return self._capture(goal_handle)
+        finally:
+            with self._busy_lock:
+                self._busy = False
 
-        self.get_logger().info("Starting capture of {} frames".format(goal_handle.request.num_frames))
-
-        self.listener_node.clear_buffers()
-
-        date = time.strftime("%d_%m_%Y-%H-%M")
-
-        feedback_msg = Persistence.Feedback()
-        recv_frames = len(self.listener_node.frame_buffer)
-        while recv_frames < goal_handle.request.num_frames:
-            if recv_frames % 10 == 0:
-                feedback_msg.captured_frames = recv_frames
-                goal_handle.publish_feedback(feedback_msg)
-
-            rclpy.spin_once(node=self.listener_node)
-            recv_frames = len(self.listener_node.frame_buffer)
-
-        current_dir = os.getenv('AIMS')
-        if not os.path.exists(current_dir + '/captures'):
-            os.mkdir(current_dir + '/captures')
-
-        capture_name_csi = capture_file_name(goal_handle.request, date)
-        with open(f"{os.getenv('AIMS')}/captures/{capture_name_csi}", "w") as f:
-            for item in self.listener_node.frame_buffer:
-                f.write(str(CsiMsgToDict(item)) + "\n")
-        
-        if len(self.listener_node.heartbeat_buffer) > 0:
-            capture_name_heartbeat = capture_file_name(goal_handle.request, date, 'Heartbeats-')
-            with open(f"{os.getenv('AIMS')}/captures/{capture_name_heartbeat}", "w") as f:
-                for item in self.listener_node.heartbeat_buffer:
-                    f.write(str(item) + "\n")
-
-        if len(self.listener_node.breath_buffer) > 0:
-            capture_name_breath = capture_file_name(goal_handle.request, date, 'Breaths-')
-            with open(f"{os.getenv('AIMS')}/captures/{capture_name_breath}", "w") as f:
-                for item in self.listener_node.breath_buffer:
-                    f.write(str(item) + "\n")
-
-        self.get_logger().info("Request served.")
-
-        goal_handle.succeed()
+    def _capture(self, goal_handle):
+        req = goal_handle.request
+        request = {f: getattr(req, f)
+                   for f in req.get_fields_and_field_types()}
         result = Persistence.Result()
-        result.response = f"Capture ({capture_name_csi}) saved to '{os.getenv('AIMS')}/captures/'"
+        try:
+            sources = load_sources(self.sources_file)
+            capture = Capture(os.environ['AIMS'], request, sources,
+                              log=self.get_logger().error)
+        except Exception as e:
+            self.get_logger().error(f'Capture not started: {e!r}')
+            goal_handle.abort()
+            result.response = f'error: {e!r}'
+            return result
+
+        subs = []
+        for name, cfg in sources.items():
+            try:
+                subs.append(self.create_subscription(
+                    get_message(cfg['type']), cfg['topic'],
+                    lambda msg, n=name: capture.write(n, msg, time.time_ns()),
+                    LATCHED if cfg.get('qos') == 'latched' else STREAM,
+                    callback_group=self._sub_group))
+            except Exception as e:
+                capture.fail(name, e)
+        capture.write_meta('recording')
+        self.get_logger().info(
+            f'Recording {req.duration_s} s to {capture.folder}')
+
+        csi_sources = [n for n, c in sources.items()
+                       if c['writer'] == 'csi_npz']
+        feedback = Persistence.Feedback()
+        start = time.monotonic()
+        try:
+            while (elapsed := time.monotonic() - start) < req.duration_s:
+                feedback.elapsed_s = int(elapsed)
+                feedback.csi_frames = sum(capture.rows(n) for n in csi_sources)
+                goal_handle.publish_feedback(feedback)
+                time.sleep(min(1.0, req.duration_s - elapsed))
+        finally:
+            for sub in subs:
+                self.destroy_subscription(sub)
+            capture.close()
+
+        self.get_logger().info(f'Capture saved to {capture.folder}')
+        goal_handle.succeed()
+        result.response = capture.folder
         return result
-    
 
 
 def main():
@@ -145,16 +111,20 @@ def main():
 
     persistence_action_server_node = PersistenceAction()
 
-    _multiThreadedExecutor = MultiThreadedExecutor()
+    # At least 2 threads: the goal sleeps in one while subscriptions run.
+    _multiThreadedExecutor = MultiThreadedExecutor(num_threads=4)
 
     _multiThreadedExecutor.add_node(persistence_action_server_node)
 
     try:
-        persistence_action_server_node.get_logger().info('PersistenceAction started.')
+        persistence_action_server_node.get_logger().info(
+            'PersistenceAction started.')
         _multiThreadedExecutor.spin()
     except KeyboardInterrupt:
-        persistence_action_server_node.get_logger().info('PersistenceAction: Keyboard interrupt, shutting down.\n')
+        persistence_action_server_node.get_logger().info(
+            'PersistenceAction: Keyboard interrupt, shutting down.\n')
 
+    persistence_action_server_node.destroy_node()
     rclpy.shutdown()
 
 

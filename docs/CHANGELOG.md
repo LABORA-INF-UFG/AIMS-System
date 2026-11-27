@@ -24,9 +24,16 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 | Topic QoS | `/there_is_person` volatile | `/person_present` reliable, `transient_local` (latched), also `/is_moving` |
 | Node name | `/Pose_Estimation` | `/pose_estimation` (the dashboard detects the camera by this name) |
 | Requirements | `aims_ws/src/requirements.txt` (unpinned, with TensorFlow) | `requirements/core.in` + hashed `requirements/core.lock`, with `requirements/constraints.txt` (`numpy<2`) |
+| Capture output | One `.txt` file (`str(dict)` per frame) plus `Heartbeats-` / `Breaths-` files, named `...-DD_MM_YYYY-HH-MM.txt` | A folder `...-YYYYMMDD-HHMMSSZ/` with `meta.json`, `csi/part-NNNN.npz` and one CSV per source; no converter for old files |
+| Action `Persistence` | Goal `num_frames`; feedback `captured_frames` | Goal `uint32 duration_s`; feedback `elapsed_s`, `csi_frames`; result = capture folder (same in `PersistenceRequest`/`PersistenceFeedback` and `persistence_bridge`) |
+| Topics `/breath_control`, `/heart_control` | `custom_interfaces/msg/BreathControl` / `HeartControl` (`timestamp`) | `aims_msgs/msg/ControlEvent` (`timestamp`, `source`); UI only, not captured. The old messages were removed: external publishers must change |
 | Compose | `make down` = `docker compose down` | `docker compose --profile vision down`, so the vision container is stopped too |
 
 ### Added
+- Package `aims_ws/src/aims_msgs`: messages shared with external devices, `ControlEvent` and `WavePeak` (identical copy of the one in the Nihon Kohden analyzer repo; both copies must stay identical). The Dockerfile copies it. See [ADR-0011](./adrs/ADR-0011-modular-capture-and-control-events.md).
+- Capture sources declared in `aims_ws/src/csi/config/capture_sources.yaml`; a new source is one entry. Capture writers in `csi/capture_writers.py` (ROS-free) with tests in `aims_ws/src/csi/test/test_capture_writers.py`.
+- `load_capture(path)` in `utils/AIMSAPI-py/capture_loader.py`, with tests.
+- Dashboard: one ground-truth chip per active source, with an icon (`CONTROL_SOURCES`; unknown sources get a generic icon and their name). Rate is 60 / mean interval between the source's event timestamps in the last 30 s; breath shows "Apnea" after 20 s without events from that source; the chip hides after 60 s idle.
 - Luxonis OAK cameras (OAK-D, ...) as a vision source: `camera: oak` (`VISION_CAMERA=oak`) reads the color preview through depthai, which the Jetson image installs (`requirements/vision-jetson.lock`). `docker-compose.oak.yml` sets it and mounts the USB bus in place of `/dev/video0`.
 - Vision on NVIDIA Jetson with JetPack 4.6 (L4T R32.x, such as a Jetson Nano): `docker-compose.jetson.yml` and `docker/vision/Dockerfile.jetson` build `aims-system-vision:jetson` (ROS 2 Humble for L4T, no PyTorch) and run `pose_estimation` with the new `backend: tensorrt` (`$VISION_BACKEND`, launch argument `backend`), plain TensorRT 8.0 on the GPU. it builds its engine from `models/vision/yolov8n-pose.onnx`, now in the repository (`scripts/vision/export_onnx.sh` re-exports it); `make up-vision-jetson` starts it. About 34 ms per inference on a Nano at `imgsz` 320.
 - ROS 2 vision pipeline imported from MyCareBed into `aims_ws/src/vision/`: `vision_interfaces` (`PoseKeypoints.msg`), `pose_estimation` (YOLOv8n-pose; CPU by default, GPU with `device:=cuda:0`), `presence` (MyCareBed's `there_is_person`, renamed), `moving`, `visualization` and `vision_bringup` (`launch/vision.launch.py`, `config/vision.yaml`). Topics: `/estimation_points`, `/vision/image_raw`, `/person_present`, `/is_moving`, `/vision_image`. See [aims_ws/src/vision/README.md](../aims_ws/src/vision/README.md).
@@ -38,12 +45,16 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 - `models/vision/yolov8n-pose.pt` and `scripts/vision/export_tensorrt.sh` (optional TensorRT engine, run inside the `:cuda` image).
 - `requirements/`: `core.in`/`core.lock`, `core-build.in`/`core-build.lock`, `constraints.txt` and `vision-cpu|cuda.in`/`.lock`, all with hashes (`pip --require-hashes`).
 - Dashboard: movement pill (Moving / Still, "Waiting for camera" until the first `/is_moving`).
-- Dashboard: **Breathing ground truth** panel (Debug only) with a **Log exhale** button and a count of logged exhales. Each click publishes `/breath_control` (`custom_interfaces/msg/BreathControl`, timestamp in ns) through rosbridge; `persistence_action` still writes those events to the `Breaths-` capture file.
+- Dashboard: **Breathing ground truth** panel (Debug only) with a **Log exhale** button and a count of logged exhales. Each click publishes `/breath_control` (UI) and `/ui/breath_annotation` (captured) through rosbridge.
 - `docs/LICENSING.md` (TODO: open licensing decision) and `docs/ground-truth-topics.md` (proposal for new `*_control` ground-truth sources).
 - `deprecated/apnea_ai/` with a README that explains how to restore the node.
 - ADR-0009 and ADR-0010.
 
 ### Changed
+- `persistence_action` rewritten: one node (the duplicate in `ros2 node list` is gone), rejects a goal while capturing, writes files during the capture (a crash loses at most the current ~10 s CSI part) and chowns them to the owner of `captures/` (no more root-owned files). A failing source is disabled and its error is recorded in `meta.json`. All sources share one `host_ns` receipt clock.
+- Capture form asks **Duration (s)** instead of the number of frames.
+- `mock_heart_beat` publishes `source: mock`. **Log exhale** publishes `/ui/breath_annotation` (captured) and `/breath_control` (UI).
+- Size on a mock run (2026-11-27): 22 s, 2201 CSI frames, 3.1 MB (about 1.4 KB per frame; 14.6 KB per frame in the old `.txt`).
 - Core image size 12.2 GB to 2.15 GB (TensorFlow and CUDA wheels removed); dropping `pynput` and `evdev` saves only about 1 MB more. The base image is pinned by digest and the build compiles only `csi` and `vision_interfaces`. Vision image sizes: CPU 4.1 GB, CUDA 14.3 GB (16.7 GB before the Windows-only TensorRT resource was removed).
 - `/person_present` and `/is_moving` are latched and publish `false` at startup. The vision nodes run headless: the OpenCV window is opt-in (`show_window`, default `false`).
 - `pose_estimation` reads `device`, `camera`, `model_path` and the capture size from `vision.yaml` (launch arguments `device` and `camera` default to `$VISION_DEVICE` and `$VISION_CAMERA`); `camera` can be a looping video file.
@@ -55,6 +66,8 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 - Dashboard: the Camera tab renders the JPEG; plots are enabled by default; ground-truth rows appear only with Debug on; "Filling buffers" disappears on the first `/breath_estimate`, with or without a subject (it used to stay while no subject was detected).
 
 ### Removed
+- `custom_interfaces` `BreathControl.msg` and `HeartControl.msg` (replaced by `aims_msgs/msg/ControlEvent`).
+- `csi/libs/CsiMsgToDict.py` and the `.txt` capture format.
 - `apnea_ai` node, `ApneaDetectionAI.py` and TensorFlow/Keras from the core image (moved to `deprecated/apnea_ai/`; `custom_interfaces/msg/ApneaAI.msg` is kept).
 - `aims_ws/src/there_is_person` (legacy copy) and the MoveNet `.tflite` model.
 - `aims_ws/src/requirements.txt`.
@@ -62,7 +75,7 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 - `pynput` and `evdev` from `requirements/core.in` / `core.lock`, and the `evdev` build from `docker/ros2/Dockerfile`.
 
 ### Deprecated
-- `breath_control` (mouse clicks, `pynput`, needed a GUI host) and `heart_control` (a second camera filming a reference device, OpenCV window): moved to `deprecated/breath_control/` and `deprecated/heart_control/` (restore steps in their READMEs); entry points removed from `aims_ws/src/csi/setup.py`. `BreathControl.msg` and `HeartControl.msg` were kept on purpose. The dashboard **Log exhale** button (Breathing ground truth panel, Debug only) replaces `breath_control`.
+- `breath_control` (mouse clicks, `pynput`, needed a GUI host) and `heart_control` (a second camera filming a reference device, OpenCV window): moved to `deprecated/breath_control/` and `deprecated/heart_control/` (restore steps in their READMEs); entry points removed from `aims_ws/src/csi/setup.py`. `BreathControl.msg` and `HeartControl.msg` were kept at that time (removed later, see [ADR-0011](./adrs/ADR-0011-modular-capture-and-control-events.md)). The dashboard **Log exhale** button (Breathing ground truth panel, Debug only) replaces `breath_control`.
 
 ### Fixed
 - A wrong wrist-to-hip segment in the skeleton overlay.
@@ -77,7 +90,7 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 
 ### Known limitations
 - The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; tune `min_std` in `vision.yaml`.
-- There is no heart ground truth by default: `/heart_control` has no publisher except `mock_heart_beat`, so the dashboard's heart ground truth stays empty until a new source is added (proposal: [ground-truth-topics.md](./ground-truth-topics.md)).
+- There is no heart ground truth by default: `/heart_control` has no publisher except `mock_heart_beat`, so the dashboard's heart ground truth stays empty until a new source is added ([ground-truth-topics.md](./ground-truth-topics.md)).
 - The MMWave Position Map tab (Experimental) shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar the tab keeps spinning.
 - The `:cuda` image was tested only on a Turing GPU. A TensorRT engine is specific to the GPU and the TensorRT version.
 

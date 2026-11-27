@@ -251,92 +251,126 @@ listenerHRCardiofi.subscribe(function(message) {
   document.getElementById("hr_value").innerHTML = decoded;
 });
 
-//Subscribing to a Topic for heart control (heart observations from the monitoring device)
+// Control events (ground truth). Each source keeps its own state; sources are never mixed.
+const CONTROL_SOURCES = {
+  ui_button: { icon: 'bi-hand-index', label: 'Button' },
+  h10: { icon: 'bi-heart-pulse', label: 'Polar H10' },
+  nk: { icon: 'bi-display', label: 'Nihon Kohden' },
+  mock: { icon: 'bi-robot', label: 'Mock' },
+};
+const RATE_WINDOW_MS = 30000;
+const APNEA_MS = 20000;
+const HIDE_MS = 60000;
+
+// Per-topic state: source -> { timestamps ([{event ms, arrival ms}]), lastSeen, chip, valueEl }
+const control_state = { breath: {}, heart: {} };
+const control_container_id = { breath: 'br_ground_truth', heart: 'hr_ground_truth' };
+
+function getControlSource(kind, source) {
+  let s = control_state[kind][source];
+  if (s) return s;
+  const info = CONTROL_SOURCES[source] || { icon: 'bi-broadcast', label: source };
+  const chip = document.createElement('span');
+  chip.className = 'inline-flex items-center gap-1 font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded transition-colors';
+  chip.style.display = 'none';
+  const icon = document.createElement('i');
+  icon.className = 'bi ' + info.icon;
+  icon.setAttribute('aria-hidden', 'true');
+  const valueEl = document.createElement('span');
+  chip.append(icon, valueEl);
+  document.getElementById(control_container_id[kind]).appendChild(chip);
+  s = control_state[kind][source] = { timestamps: [], lastSeen: 0, chip, valueEl, label: info.label };
+  return s;
+}
+
+function onControlEvent(kind, message) {
+  const now = Date.now();
+  const s = getControlSource(kind, message.source || 'unknown');
+  // Intervals use the event's own time (sources may deliver in bursts or correct for latency);
+  // arrival time only drives the window, apnea and hiding. ns -> ms as a double loses < 1 us.
+  s.timestamps.push({ event: Number(message.timestamp) / 1e6, arrival: now });
+  s.lastSeen = now;
+  renderControlSource(kind, s, now);
+  s.chip.classList.add('bg-primary', 'text-white');
+  s.chip.classList.remove('bg-gray-100', 'text-gray-800');
+  setTimeout(() => {
+    s.chip.classList.remove('bg-primary', 'text-white');
+    s.chip.classList.add('bg-gray-100', 'text-gray-800');
+  }, 300);
+}
+
+function renderControlSource(kind, s, now) {
+  while (s.timestamps.length && now - s.timestamps[0].arrival > RATE_WINDOW_MS) s.timestamps.shift();
+  if (now - s.lastSeen > HIDE_MS) { s.chip.style.display = 'none'; return; }
+  let value = '--';
+  if (kind === 'breath' && now - s.lastSeen >= APNEA_MS) {
+    value = 'Apnea';
+  } else if (s.timestamps.length >= 2) {
+    const t = s.timestamps.map(e => e.event).sort((a, b) => a - b);
+    const mean = (t[t.length - 1] - t[0]) / (t.length - 1);
+    value = mean > 0 ? (60000 / mean).toFixed(1) : '--';
+  }
+  s.valueEl.innerText = value;
+  s.chip.title = s.chip.ariaLabel = `${s.label}: ${value}`;
+  s.chip.style.display = 'inline-flex';
+}
+
+// One shared timer refreshes decay, apnea and hiding for both cards
+setInterval(() => {
+  const now = Date.now();
+  for (const kind in control_state)
+    for (const source in control_state[kind]) renderControlSource(kind, control_state[kind][source], now);
+}, 1000);
+
+// Heart observations from the monitoring devices
 let listenerHeartControl = new ROSLIB.Topic({
     ros : ros,
     name : '/heart_control',
-    messageType : 'custom_interfaces/msg/HeartControl'
+    messageType : 'aims_msgs/msg/ControlEvent'
 });
 
-let heart_beats_buffer = []
 listenerHeartControl.subscribe(function(message) {
-  heart_beats_buffer.push(message.timestamp)
-
-  let last_element = message.timestamp
-  // Windows_size in seconds
-  let window_size = 30
-  let window_size_ns = window_size * 1000000000
-  while (heart_beats_buffer.length > 1) {
-    if ( (last_element - heart_beats_buffer[0]) >= window_size_ns) {
-      heart_beats_buffer.shift()
-    }
-    else {
-      let bpm_ground_truth_estimave = heart_beats_buffer.length * (60/window_size)
-      document.getElementById("hr_ground_truth").innerText = String(bpm_ground_truth_estimave);
-      break;
-    }
-  }
-  document.getElementById("hr_ground_truth").style.display = 'inline-block';
-
-  console.log('Received message on ' + listenerHeartControl.name + ': ' + message.timestamp);
-  document.getElementById("heart-beat").style.display = 'inline-block';
+  onControlEvent('heart', message);
+  document.getElementById("heart-beat").style.visibility = 'visible';
   setTimeout(hideHeartBeat, 500);
 });
 
-//Subscribing to a Topic for heart control (heart observations from the monitoring device)
+// Breath observations (button, monitoring devices, ...)
 let listenerBreathControl = new ROSLIB.Topic({
     ros : ros,
     name : '/breath_control',
-    messageType : 'custom_interfaces/msg/BreathControl'
+    messageType : 'aims_msgs/msg/ControlEvent'
 });
 
-// Operator annotation: one message per exhale; the listener below receives it back
+// Raw annotation topic: captures persist this one; /breath_control feeds the UI only
+let breathAnnotationPublisher = new ROSLIB.Topic({
+    ros : ros,
+    name : '/ui/breath_annotation',
+    messageType : 'aims_msgs/msg/ControlEvent'
+});
+
+// Operator annotation: one event per exhale
 let breath_count = 0;
 breathBtn.addEventListener('click', () => {
-  listenerBreathControl.publish({ timestamp: Date.now() * 1000000 });
+  const event = { timestamp: Date.now() * 1000000, source: 'ui_button' };
+  breathAnnotationPublisher.publish(event);
+  listenerBreathControl.publish(event);
   document.getElementById('breath_count').innerText = ++breath_count;
 });
 
-let breath_buffer = []
-// Windows_size in seconds
-let window_time = 30
-let breath_control_started = false
-let time_no_breath = 0
 listenerBreathControl.subscribe(function(message) {
-  breath_buffer.push(message.timestamp)
-  time_no_breath = 0;
-  //starting the timer for breathing control
-  if (!breath_control_started){
-    setInterval(function() {
-        let currentTimeInSeconds = Math.floor(Date.now() / 1000);
-        let firstTimestamp = breath_buffer[0] / 1000000000; // Convert timestamp to seconds
-        let time_diff =  (currentTimeInSeconds - firstTimestamp);
-        if (time_diff >= window_time) {
-            // Remove the first element from breath_buffer
-            breath_buffer.shift();
-            brpm_ground_truth_estimave = breath_buffer.length * (60 / window_time)
-            document.getElementById("br_ground_truth").innerText = String(brpm_ground_truth_estimave);
-        }
-        if (time_no_breath >= 20){
-            document.getElementById("br_ground_truth").innerText = "Apnea";
-        }
-        time_no_breath++;
-    }, 1000);
-    breath_control_started = true;
-  }
-  document.getElementById("br_ground_truth").style.display = 'inline-block';
-  console.log('Received message on ' + listenerBreathControl.name + ': ' + message.timestamp);
-  document.getElementById("lung-beat").style.display = 'inline-block';
+  onControlEvent('breath', message);
+  document.getElementById("lung-beat").style.visibility = 'visible';
   setTimeout(hideLungBeat, 500);
 });
 
 function hideHeartBeat() {
     var heartBeat = document.getElementById('heart-beat');
-    heartBeat.style.display = 'none';
+    heartBeat.style.visibility = 'hidden';
   }
 function hideLungBeat() {
     var lungBeat = document.getElementById('lung-beat');
-    lungBeat.style.display = 'none';
+    lungBeat.style.visibility = 'hidden';
   }
 
 // Like when publishing a topic, we first create a Topic object with details of the topic's name
@@ -416,7 +450,6 @@ let persistence_request_publisher = new ROSLIB.Topic({
 
 const form = document.getElementById('metadata-form');
 const form_btn = document.getElementById('btn-persistence');
-let num_frames = null;
 form.addEventListener('submit', (event) => {
   event.preventDefault();
 
@@ -428,8 +461,6 @@ form.addEventListener('submit', (event) => {
     document.getElementById('subject_id_error').style.display = subject_id_valid ? 'none' : 'block';
     if (!subject_id_valid) return;
 
-    num_frames = Number(form.num_frames.value);
-
     let request_message = new ROSLIB.Message({
       capture_name: form.capture_name.value,
       subject_id: subject_id,
@@ -437,7 +468,7 @@ form.addEventListener('submit', (event) => {
       tx_nic_model: 'Intel 5300',
       subject_position: form.subject_position.value,
       antenna_distance_cm: Number(form.antenna_distance_cm.value),
-      num_frames: num_frames
+      duration_s: Number(form.duration_s.value)
     });
     
     persistence_request_publisher.publish(request_message);
@@ -445,7 +476,7 @@ form.addEventListener('submit', (event) => {
     form_btn.innerText = 'Cancel'
     form_btn.value = '1'
 
-    document.getElementById('progress-bar').setAttribute('max', form.num_frames.value);
+    document.getElementById('progress-bar').setAttribute('max', form.duration_s.value);
     document.getElementById('progress_div').style.display = 'block';
   }
   // else {
@@ -474,8 +505,8 @@ let persistence_feedback_listener = new ROSLIB.Topic({
 });
 
 persistence_feedback_listener.subscribe((message) => {
-  document.getElementById('progress-bar').setAttribute('value', message.captured_frames);
-  document.getElementById('progress-text').innerText = `Packets: ${message.captured_frames}/${num_frames}`;
+  document.getElementById('progress-bar').setAttribute('value', message.elapsed_s);
+  document.getElementById('progress-text').innerText = `${message.elapsed_s}/${document.getElementById('progress-bar').getAttribute('max')} s · ${message.csi_frames} CSI frames`;
 });
 
 // ===================

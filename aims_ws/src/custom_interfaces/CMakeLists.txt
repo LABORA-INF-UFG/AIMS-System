@@ -36,11 +36,9 @@ set(msg_files
   "msg/PktTxExtraInfo.msg"
   "msg/BreathEstimate.msg"
   "msg/MmWVitalSignal.msg"
-  "msg/HeartControl.msg"
   "msg/ApneaAI.msg"
   "msg/PersistenceRequest.msg"
   "msg/PersistenceFeedback.msg"
-  "msg/BreathControl.msg"
   "msg/OctaveCardiofi.msg"
 )
 set(srv_files

@@ -27,6 +27,7 @@ ADRs document significant architectural decisions: the context that motivated th
 | [ADR-0008](./ADR-0008-bridge-networking-as-default.md) | Bridge Networking as Default; Host Networking as an Opt-in Override | Accepted | 2026-10-12 |
 | [ADR-0009](./ADR-0009-vision-subsystem-separate-image.md) | Vision Subsystem in the Monorepo, in Its Own Image Behind a Compose Profile | Accepted | 2026-10-15 |
 | [ADR-0010](./ADR-0010-deprecate-apnea-ai-and-tensorflow.md) | Deprecate the apnea_ai Node and Drop TensorFlow from the Core Image | Accepted | 2026-10-15 |
+| [ADR-0011](./ADR-0011-modular-capture-and-control-events.md) | Modular Capture Sources and Shared Control-Event Messages | Accepted | 2026-11-27 |
 
 ## How to create a new ADR
 

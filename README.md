@@ -2,7 +2,7 @@
 
 **A**dvanced **M**ulti**I**modal **S**ensing: a contactless vital-sign monitoring system based on Wi-Fi Channel State Information (CSI), ROS2 and a web interface.
 
-AIMS captures CSI frames from an Intel IWL5300 NIC with [PicoScenes](https://ps.zpj.io/), publishes them as ROS2 messages, estimates breathing rate (and detects apnea) from them in real time, and shows the signals in a browser dashboard. Captures can be saved to text files for offline analysis. A mock CSI source lets you run the whole pipeline without any hardware. An optional camera pipeline (YOLOv8n-pose, CPU or NVIDIA GPU) adds person presence and movement to the dashboard.
+AIMS captures CSI frames from an Intel IWL5300 NIC with [PicoScenes](https://ps.zpj.io/), publishes them as ROS2 messages, estimates breathing rate (and detects apnea) from them in real time, and shows the signals in a browser dashboard. Captures are saved as a folder of compressed CSI parts plus one CSV per other source, for offline analysis. A mock CSI source lets you run the whole pipeline without any hardware. An optional camera pipeline (YOLOv8n-pose, CPU or NVIDIA GPU) adds person presence and movement to the dashboard.
 
 ## How to cite
 
@@ -35,7 +35,7 @@ If you use this software, please cite the article. Citation metadata for GitHub'
 │  │  CSI_SOURCE=picoscenes csi_publisher ─────┴─► /pktcsi                │    │
 │  │  breath_estimator ─► /breath_estimate                                │    │
 │  │  csi_heatmap_publisher ─► /heatmap                                   │    │
-│  │  persistence_action + persistence_bridge ─► captures/*.txt           │    │
+│  │  persistence_action + persistence_bridge ─► captures/<folder>/        │    │
 │  └──────────────────────────────────────────────────────────────────────┘    │
 │  ┌──────────────────────────────────────────────────────────────────────┐    │
 │  │ vision  (optional, profile "vision")                                 │    │
@@ -157,7 +157,7 @@ When the first `/is_moving` arrives, the dashboard shows a movement pill (Moving
 
 **Limits to know about:**
 - The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; lower `min_std` in `aims_ws/src/vision/vision_bringup/config/vision.yaml`.
-- Ground truth: with Debug on, the dashboard **Log exhale** button (Breathing ground truth panel) publishes `/breath_control` on each click. `/heart_control` has no publisher except `mock_heart_beat`, so the heart ground truth stays empty. The old `breath_control` and `heart_control` nodes are in `deprecated/`; to add a new source (Polar strap, ICU monitor) see [docs/ground-truth-topics.md](docs/ground-truth-topics.md) (proposal).
+- Ground truth: `/breath_control` and `/heart_control` carry `aims_msgs/msg/ControlEvent` (`timestamp` in ns, free-text `source`) and drive the dashboard only; they are not captured. With Debug on, the dashboard shows one chip per active source (icon, rate over the last 30 s). The **Log exhale** button publishes `/ui/breath_annotation` (raw, captured) and `/breath_control` (UI). `mock_heart_beat` publishes `source: mock`; nothing else publishes `/heart_control` by default. The old `breath_control` and `heart_control` nodes are in `deprecated/`. To add a source (Polar H10, Nihon Kohden, ...) see [docs/ground-truth-topics.md](docs/ground-truth-topics.md).
 - The **MMWave Position Map** tab (Experimental) shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar the tab keeps spinning.
 
 ## Environment variables
@@ -200,7 +200,7 @@ The `PICOSCENES_*` variables are read only by the host scripts, not by the conta
 | `mock_csi` | Replays a recorded CSI frame (`CSI_SOURCE=mock`) | `/pktcsi` | |
 | `breath_estimator` | Breathing rate and apnea flag | `/breath_estimate` | `/pktcsi` |
 | `csi_heatmap_publisher` | CSI heatmap image | `/heatmap` | `/pktcsi` |
-| `persistence_action` | Action server `persist_csi`: saves N frames to `captures/` | | `/pktcsi`, `/heart_control`, `/breath_control` |
+| `persistence_action` | Action server `persist_csi`: records for a duration into a folder in `captures/` | | the topics listed in `capture_sources.yaml` |
 | `persistence_bridge` | Lets the web page start a capture | `/persistence_bridge/response`, `/persistence_bridge/feedback` | `/persistence_bridge/request` |
 
 These six run in the default launch (`ros2 launch csi aims_launch.py`). Other executables exist in `aims_ws/src/csi` and are not started by default: `breath_estimator_cardiofi` (`/breath_estimate_cardiofi`, `/heart_estimate_cardiofi`), `mock_breathing`, `mock_heart_beat`, `breath_plotter`, `csi_heatmap_plotter`, `mmw_talker`, `octave_cardiofi`.
@@ -216,24 +216,31 @@ The vision nodes run in the `vision` service (profile `vision`, `ros2 launch vis
 
 The dashboard subscribes to `/vision_image`, `/person_present` and `/is_moving`. It detects the camera by the node name `/pose_estimation`. The `apnea_ai` node (Keras, TensorFlow) is no longer part of the `csi` package; the code is in [deprecated/apnea_ai/](deprecated/apnea_ai/README.md).
 
-Message definitions are in `aims_ws/src/custom_interfaces` (`BreathEstimate` has `breath_rate`, `precision`, `apnea_detected`).
+Message definitions are in `aims_ws/src/custom_interfaces` (`BreathEstimate` has `breath_rate`, `precision`, `apnea_detected`). Messages shared with external devices are in `aims_ws/src/aims_msgs` (see its [README](aims_ws/src/aims_msgs/README.md)).
 
 ## Capture file format
 
-In the dashboard, open the persistence panel, fill the form (capture name, **Subject ID**, NIC models, subject position, antenna distance, number of frames) and start. Files are written to `./captures/` in the repository folder (a bind mount of `/app/captures`).
+In the dashboard, open the persistence panel, fill the form (capture name, **Subject ID**, NIC models, subject position, antenna distance, **Duration (s)**) and start. A capture is a folder in `./captures/` in the repository folder (a bind mount of `/app/captures`). A goal sent while another capture runs is rejected.
 
 The **Subject ID** is free text, required, and limited to letters, digits, `_` and `-`. It is the only identification of the subject; there is no patient database or login.
 
-File name:
+Folder name (UTC, `Z` suffix; `-N` is appended if the name exists):
 
 ```
-{capture_name}-{subject_id}-{rx_nic_model}-{tx_nic_model}-{subject_position}-{antenna_distance_cm}cm-{DD_MM_YYYY-HH-MM}.txt
+{capture_name}-{subject_id}-{rx_nic_model}-{tx_nic_model}-{subject_position}-{antenna_distance_cm}cm-{YYYYMMDD-HHMMSS}Z[-N]/
+├── meta.json           # format_version 1, status recording|complete, request, start_ns, end_ns, timezone, sources (files, rows, error)
+├── csi/part-NNNN.npz   # about 10 s each
+└── <source>.csv        # one per other source, host_ns first
 ```
 
-- Every component is sanitized: characters outside `A-Za-z0-9_-` become `_`, so there is no `:` and the names are valid on Windows.
-- Two extra files are written when something published on `/heart_control` / `/breath_control` during the capture (for example the dashboard **Log exhale** button or `mock_heart_beat`): the same name with the prefix `Heartbeats-` or `Breaths-`.
-- Each line of the CSI file is the Python `str()` of a dictionary built from one `/pktcsi` message (`aims_ws/src/csi/csi/libs/CsiMsgToDict.py`). Heartbeat and breath files hold `{'timestamp', 'pktid'}` dictionaries.
-- `utils/AIMSAPI-py` holds helper functions for handling AIMS data; see its [README](utils/AIMSAPI-py/README.md).
+- Every name component is sanitized: characters outside `A-Za-z0-9_-` become `_`, so there is no `:` and the names are valid on Windows.
+- `csi/part-NNNN.npz` holds host_ns, pktid, the per-frame rx scalars, agc, numtones/numtx/numrx, `csi` (complex64, `[N, L]`) and subcarrierindex.
+- `host_ns` is the receipt time on the capturing machine, one clock for all sources.
+- Sources are declared in `aims_ws/src/csi/config/capture_sources.yaml` (`/pktcsi`, `/breath_estimate`, `/person_present`, `/is_moving`, `/ui/breath_annotation`). Adding a source is one YAML entry and only adds files. `/breath_control` and `/heart_control` are not captured.
+- Files are written during the capture, so a crash loses at most the current CSI part, and they are owned by the owner of `captures/`. A source that fails is disabled and its error is recorded in `meta.json`; the others continue.
+- Size on a mock run: 22 s, 2201 CSI frames, 3.1 MB (about 1.4 KB per frame; the old `.txt` format used about 14.6 KB per frame).
+- Load a capture with `load_capture(path)` in `utils/AIMSAPI-py/capture_loader.py`; see its [README](utils/AIMSAPI-py/README.md).
+- The old `.txt` captures (one `str(dict)` per frame, `Heartbeats-` / `Breaths-` files) are no longer produced and there is no converter.
 
 Subject positions are the ASCII values of the position selector in the dashboard (for example `sitting_front`, `lying_45deg_feet_to_window`).
 

@@ -131,15 +131,15 @@
               <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48 relative overflow-hidden">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Resp. rate</span>
-                  <span class="text-sky-500 text-xl" id="lung-beat" style="display: none;"><i class="bi bi-lungs-fill"></i></span>
+                  <span class="text-sky-500 text-xl" id="lung-beat" style="visibility: hidden;"><i class="bi bi-lungs-fill"></i></span>
                 </div>
                 <div class="my-3 flex items-baseline space-x-1">
                   <span id="br_value" class="text-5xl font-black text-gray-900 tracking-tight">0</span>
                   <span class="text-sm text-gray-500 font-semibold">breaths/min</span>
                 </div>
-                <div style="display:none;" class="ground-truth border-t border-gray-100 pt-2 flex justify-between items-center text-xs text-gray-500">
+                <div style="display:none;" class="ground-truth border-t border-gray-100 pt-2 flex items-center gap-2 text-xs text-gray-500">
                   <span>Ground Truth:</span>
-                  <span id="br_ground_truth" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">0</span>
+                  <div id="br_ground_truth" class="flex flex-wrap gap-1"></div>
                 </div>
               </div>
 
@@ -147,21 +147,21 @@
               <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48 relative overflow-hidden">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Heart rate</span>
-                  <span class="text-red-500 text-xl" id="heart-beat" style="display: none;"><i class="bi bi-heart-fill"></i></span>
+                  <span class="text-red-500 text-xl" id="heart-beat" style="visibility: hidden;"><i class="bi bi-heart-fill"></i></span>
                 </div>
                 <div class="my-3 flex items-baseline space-x-1">
                   <span id="hr_value" class="text-5xl font-black text-gray-900 tracking-tight">0</span>
                   <span class="text-sm text-gray-500 font-semibold">bpm</span>
                 </div>
-                <div style="display:none;" class="ground-truth border-t border-gray-100 pt-2 flex justify-between items-center text-xs text-gray-500">
+                <div style="display:none;" class="ground-truth border-t border-gray-100 pt-2 flex items-center gap-2 text-xs text-gray-500">
                   <span>Ground Truth:</span>
-                  <span id="hr_ground_truth" class="font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded">0</span>
+                  <div id="hr_ground_truth" class="flex flex-wrap gap-1"></div>
                 </div>
               </div>
 
             </div>
 
-            <!-- Breathing ground-truth annotation (Debug only): each click publishes /breath_control -->
+            <!-- Breathing ground-truth annotation (Debug only): each click publishes a ControlEvent to /ui/breath_annotation (persisted) and /breath_control (UI) -->
             <div style="display:none;" class="ground-truth bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Breathing ground truth</span>
               <div class="mt-3 flex items-center gap-4">
@@ -171,7 +171,7 @@
                   <span class="text-xs text-gray-500">logged</span>
                 </div>
               </div>
-              <p class="mt-2 text-xs text-gray-500">Click on every exhale of the subject. The rate over the last 30 s appears as Ground Truth in the Resp. rate card.</p>
+              <p class="mt-2 text-xs text-gray-500">Click on every exhale of the subject. The rate over the last 30 s appears as a "Button" chip in the Resp. rate card.</p>
             </div>
 
           </div>
@@ -270,10 +270,10 @@
             <p id="subject_id_error" class="mt-1 text-xs text-red-600" style="display: none;">Subject ID is required and may only contain letters, digits, "_" and "-".</p>
           </div>
 
-          <!-- Number of frames -->
+          <!-- Capture duration -->
           <div>
-            <label class="block text-sm font-semibold text-gray-700">Number of frames</label>
-            <input type="number" name="num_frames" min="0" value="12000" required
+            <label class="block text-sm font-semibold text-gray-700">Duration (s)</label>
+            <input type="number" name="duration_s" min="1" step="1" value="120" required
               class="mt-1 block w-full px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-gray-900 transition">
           </div>
 
@@ -322,7 +322,7 @@
         <div id="progress_div" style="display: none;" class="space-y-2">
           <div class="flex justify-between text-sm font-semibold text-gray-700">
             <span>Capture Progress</span>
-            <span id="progress-text" class="text-primary">Packets: 0/12000</span>
+            <span id="progress-text" class="text-primary">0/120 s</span>
           </div>
           <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden border border-gray-300">
             <div id="progress-bar" class="bg-primary h-full transition-all duration-300" style="width: 0%;"></div>

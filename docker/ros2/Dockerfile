@@ -23,6 +23,7 @@ RUN apt-get update && \
 # Copy package manifests first for rosdep layer caching
 COPY aims_ws/src/csi/package.xml /tmp/aims_ws/src/csi/
 COPY aims_ws/src/custom_interfaces/package.xml /tmp/aims_ws/src/custom_interfaces/
+COPY aims_ws/src/aims_msgs/package.xml /tmp/aims_ws/src/aims_msgs/
 COPY aims_ws/src/vision/vision_interfaces/package.xml /tmp/aims_ws/src/vision/vision_interfaces/
 
 # Resolve ROS2 package dependencies via rosdep
@@ -53,6 +54,7 @@ RUN pip3 install --no-cache-dir --require-hashes -r /tmp/core-build.lock && \
 # Copy source code and build the colcon workspace
 COPY aims_ws/src/csi/ /app/aims_ws/src/csi/
 COPY aims_ws/src/custom_interfaces/ /app/aims_ws/src/custom_interfaces/
+COPY aims_ws/src/aims_msgs/ /app/aims_ws/src/aims_msgs/
 COPY aims_ws/src/vision/vision_interfaces/ /app/aims_ws/src/vision/vision_interfaces/
 WORKDIR /app/aims_ws
 
@@ -86,6 +88,7 @@ COPY --from=builder /app/aims_ws/install/ /app/aims_ws/install/
 # Copy source files needed at runtime (resource files, launch files, libs)
 COPY aims_ws/src/csi/ /app/aims_ws/src/csi/
 COPY aims_ws/src/custom_interfaces/ /app/aims_ws/src/custom_interfaces/
+COPY aims_ws/src/aims_msgs/ /app/aims_ws/src/aims_msgs/
 COPY aims_ws/src/fastdds_profile.xml /app/aims_ws/src/fastdds_profile.xml
 
 # Patched PicoScenes parser, imported as PicoscenesToolbox.picoscenes ($AIMS=/app)

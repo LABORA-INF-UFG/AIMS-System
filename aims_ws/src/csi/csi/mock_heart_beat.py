@@ -1,20 +1,21 @@
 import rclpy, time
 from rclpy.node import Node
-from custom_interfaces.msg import HeartControl
+from aims_msgs.msg import ControlEvent
 
 class MockHeartBeat(Node):
     def __init__(self):
         super().__init__('heart_beat_mock')
         self._publisher = self.create_publisher(
-                HeartControl,
+                ControlEvent,
                 'heart_control',
                 10)
         timer_period = 1
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
     def timer_callback(self):
-        heart_control_msg = HeartControl()
+        heart_control_msg = ControlEvent()
         heart_control_msg.timestamp = time.time_ns()
+        heart_control_msg.source = 'mock'
         self._publisher.publish(heart_control_msg)
         self.get_logger().info(f'Publishing mocked heart beat: {heart_control_msg.timestamp}')
 

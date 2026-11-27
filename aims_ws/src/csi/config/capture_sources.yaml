@@ -1,0 +1,17 @@
+# Topics recorded by the persistence_action node, one entry per source.
+# Keys: topic, type (pkg/msg/Type), fields (dotted paths, csv writer),
+# explode (one row per element of that array field), qos (latched),
+# writer (csv by default, or csi_npz).
+# /breath_control and /heart_control are UI-only and are not recorded.
+sources:
+  csi: {topic: /pktcsi, type: custom_interfaces/msg/PktCSI, writer: csi_npz}
+  breath_estimate:
+    topic: /breath_estimate
+    type: custom_interfaces/msg/BreathEstimate
+    fields: [breath_rate, precision, apnea_detected]
+  person_present: {topic: /person_present, type: std_msgs/msg/Bool, fields: [data], qos: latched}
+  is_moving: {topic: /is_moving, type: std_msgs/msg/Bool, fields: [data], qos: latched}
+  ui_breath_annotation:
+    topic: /ui/breath_annotation
+    type: aims_msgs/msg/ControlEvent
+    fields: [timestamp, source]

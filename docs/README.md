@@ -19,7 +19,8 @@ docs/
     ├── ADR-0007-picoscenes-on-host-explicit-csi-source.md
     ├── ADR-0008-bridge-networking-as-default.md
     ├── ADR-0009-vision-subsystem-separate-image.md
-    └── ADR-0010-deprecate-apnea-ai-and-tensorflow.md
+    ├── ADR-0010-deprecate-apnea-ai-and-tensorflow.md
+    └── ADR-0011-modular-capture-and-control-events.md
 ```
 
 ## What each document is

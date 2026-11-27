@@ -4,4 +4,4 @@ string rx_nic_model
 string tx_nic_model
 string subject_position
 uint32 antenna_distance_cm
-uint32 num_frames
+uint32 duration_s

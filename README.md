@@ -157,7 +157,7 @@ When the first `/is_moving` arrives, the dashboard shows a movement pill (Moving
 
 **Limits to know about:**
 - The presence rule (`min_points` 6, `min_std` 0.045 on both axes) was tuned for a close webcam. A person far away or narrow in the frame is not detected; lower `min_std` in `aims_ws/src/vision/vision_bringup/config/vision.yaml`.
-- Ground truth: `/breath_control` and `/heart_control` carry `aims_msgs/msg/ControlEvent` (`timestamp` in ns, free-text `source`) and drive the dashboard only; they are not captured. With Debug on, the dashboard shows one chip per active source (icon, rate over the last 30 s). The **Log exhale** button publishes `/ui/breath_annotation` (raw, captured) and `/breath_control` (UI). `mock_heart_beat` publishes `source: mock`; nothing else publishes `/heart_control` by default. The old `breath_control` and `heart_control` nodes are in `deprecated/`. To add a source (Polar H10, Nihon Kohden, ...) see [docs/ground-truth-topics.md](docs/ground-truth-topics.md).
+- Ground truth: `/breath_control` and `/heart_control` carry `aims_msgs/msg/ControlEvent` (`timestamp` in ns, free-text `source`) and drive the dashboard only; they are not captured. With Debug on, the dashboard shows one chip per active source (icon, rate over the last 30 s). The **Log exhale** button publishes `/ui/breath_annotation` (raw, captured) and `/breath_control` (UI). `mock_heart_beat` publishes `source: mock`; nothing else publishes `/heart_control` by default. The old `breath_control` and `heart_control` nodes are in `deprecated/`. The Polar H10 chest strap is supported through the standalone bridge in [devices/h10_bridge](devices/h10_bridge/README.md) (publishes `source: h10` and captures `h10_ecg`, `h10_acc`, `h10_hr`). To add a source (Nihon Kohden, ...) see [docs/ground-truth-topics.md](docs/ground-truth-topics.md).
 - The **MMWave Position Map** tab (Experimental) shows `/heatmapmmw` from the mmWave radar node `mmw_talker` (TI IWR1642 over serial), which is not in the default launch. Without the radar the tab keeps spinning.
 
 ## Environment variables
@@ -312,6 +312,7 @@ To run only the camera on one of the machines, see [Vision](#vision-camera-optio
 ├── captures/               # capture output (bind mount)
 ├── videos/                 # test videos for the vision service (read-only mount)
 ├── resources/              # patched PicoScenes parser, test assets
+├── devices/h10_bridge/     # Polar H10 bridge (BLE to rosbridge), runs outside the stack
 ├── utils/AIMSAPI-py/       # Python helpers to read capture files
 ├── docs/                   # changelog and ADRs
 ├── Makefile                # thin wrapper around docker compose

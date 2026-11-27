@@ -30,6 +30,9 @@ Vision integration (MyCareBed pipeline), a much smaller core image and locked de
 | Compose | `make down` = `docker compose down` | `docker compose --profile vision down`, so the vision container is stopped too |
 
 ### Added
+- Polar H10 bridge, `devices/h10_bridge/` (standalone Python program: BLE with bleak/bleakheart, publishes through rosbridge with roslibpy; not a ROS node). Topics `/h10/ecg`, `/h10/acc`, `/h10/hr` and `ControlEvent` `source: h10` on `/heart_control`; `--replay` and `--dry-run` for tests. See its [README](../devices/h10_bridge/README.md) and [ADR-0012](./adrs/ADR-0012-device-bridges-over-rosbridge.md).
+- Messages `H10Ecg`, `H10Acc` and `H10Hr` in `aims_msgs`.
+- Capture sources `h10_ecg`, `h10_acc` and `h10_hr` in `capture_sources.yaml`, with `sensor_ns`, `bridge_ns` and `host_ns`. `explode` now accepts a list of same-length array fields.
 - Package `aims_ws/src/aims_msgs`: messages shared with external devices, `ControlEvent` and `WavePeak` (identical copy of the one in the Nihon Kohden analyzer repo; both copies must stay identical). The Dockerfile copies it. See [ADR-0011](./adrs/ADR-0011-modular-capture-and-control-events.md).
 - Capture sources declared in `aims_ws/src/csi/config/capture_sources.yaml`; a new source is one entry. Capture writers in `csi/capture_writers.py` (ROS-free) with tests in `aims_ws/src/csi/test/test_capture_writers.py`.
 - `load_capture(path)` in `utils/AIMSAPI-py/capture_loader.py`, with tests.

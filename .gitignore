@@ -45,3 +45,6 @@ models/**/*.onnx
 # Source of the Jetson engine, shipped so docker-compose.jetson.yml works out of the box
 !models/vision/yolov8n-pose.onnx
 models/**/*.cache
+
+# Python virtual environments (e.g. devices/h10_bridge/.venv)
+.venv/

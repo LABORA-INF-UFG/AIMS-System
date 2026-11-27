@@ -20,7 +20,8 @@ docs/
     ├── ADR-0008-bridge-networking-as-default.md
     ├── ADR-0009-vision-subsystem-separate-image.md
     ├── ADR-0010-deprecate-apnea-ai-and-tensorflow.md
-    └── ADR-0011-modular-capture-and-control-events.md
+    ├── ADR-0011-modular-capture-and-control-events.md
+    └── ADR-0012-device-bridges-over-rosbridge.md
 ```
 
 ## What each document is

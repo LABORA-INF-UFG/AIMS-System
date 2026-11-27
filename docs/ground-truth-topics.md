@@ -1,8 +1,8 @@
 # Ground-truth topics
 
-Ground truth is a reference measurement (heartbeats, breaths, vital signs) recorded next to the CSI so the estimates can be checked. See [ADR-0011](./adrs/ADR-0011-modular-capture-and-control-events.md).
+Ground truth is a reference measurement (heartbeats, breaths, vital signs) recorded next to the CSI so the estimates can be checked. See [ADR-0011](./adrs/ADR-0011-modular-capture-and-control-events.md) and [ADR-0012](./adrs/ADR-0012-device-bridges-over-rosbridge.md).
 
-**Status: the Contract and Dashboard sections describe the current code. Polar H10 and Nihon Kohden are planned, not implemented.**
+**Status: the Contract and Dashboard sections describe the current code. Polar H10 is implemented through a bridge; Nihon Kohden is planned.**
 
 ## Contract
 
@@ -15,7 +15,7 @@ Each source does two separate things:
 
 | Topic | Type | Publisher today |
 |---|---|---|
-| `/heart_control` | `aims_msgs/msg/ControlEvent` | `mock_heart_beat` only (1 per second, `source: mock`) |
+| `/heart_control` | `aims_msgs/msg/ControlEvent` | `mock_heart_beat` (1 per second, `source: mock`); `h10_bridge` (1 per RR interval, `source: h10`) |
 | `/breath_control` | `aims_msgs/msg/ControlEvent` | Dashboard **Log exhale** button (Debug only) |
 | `/ui/breath_annotation` | `aims_msgs/msg/ControlEvent` | Same button; raw copy, captured (`ui_breath_annotation` in `capture_sources.yaml`) |
 
@@ -28,6 +28,7 @@ The old nodes `breath_control` (mouse clicks) and `heart_control` (second camera
 - One chip per active source, with the icon from `CONTROL_SOURCES`; unknown sources get a generic icon (`bi-broadcast`) and their name.
 - Rate = 60 / mean interval between that source's event timestamps in the last 30 s.
 - The breath chip shows "Apnea" after 20 s without events from that source; a chip hides after 60 s idle.
+- The large heart / lungs icon in each card blinks on every event of every source. With two or more sources active it blinks for all of them, so its pace looks faster than the real rate. Read the rate from the chips; each chip also highlights only on its own source's events.
 
 | `source` | Icon | Label |
 |---|---|---|
@@ -38,13 +39,24 @@ The old nodes `breath_control` (mouse clicks) and `heart_control` (second camera
 
 To give a new source its own icon, add a line to `CONTROL_SOURCES`.
 
+## Polar H10 chest strap (implemented)
+
+Standalone program `devices/h10_bridge/h10_bridge.py`, see its [README](../devices/h10_bridge/README.md). It reads the strap over BLE and publishes through rosbridge, so it runs on any machine near the subject (not a ROS node, [ADR-0012](./adrs/ADR-0012-device-bridges-over-rosbridge.md)).
+
+| Topic | Type | Content | Capture source |
+|---|---|---|---|
+| `/h10/ecg` | `aims_msgs/msg/H10Ecg` | ECG, 130 Hz, uV | `h10_ecg` (one row per sample) |
+| `/h10/acc` | `aims_msgs/msg/H10Acc` | Accelerometer, 25/50/100/200 Hz, 2/4/8 g (default 200 Hz, 8 g) | `h10_acc` (one row per sample, x/y/z) |
+| `/h10/hr` | `aims_msgs/msg/H10Hr` | bpm and RR intervals (ms) | `h10_hr` (one row per notification, RR as a space-separated string) |
+| `/heart_control` | `aims_msgs/msg/ControlEvent` | `source: h10`, one per RR interval (dashboard chip) | not captured |
+
+- Clocks: `sensor_ns` (strap clock, offset varies per session), `bridge_ns` (bridge machine clock) and `host_ns` (capture node receipt, same clock as CSI). `host_ns` includes network latency; the other two allow correcting it. `h10_hr` has no `sensor_ns`.
+- ECG and ACC can take about 30 s after start to stream.
+- `--replay file.jsonl` replays a recording as a mock; `--dry-run` prints instead of publishing.
+- Linux: the strap requires BLE pairing; a container needs `/run/dbus:/run/dbus:ro` and `--security-opt apparmor=unconfined`. The lab machine's Intel BE200 Bluetooth fails to pair with the H10 (`AuthenticationTimeout`), so the bridge runs on another machine (or use a USB Bluetooth dongle). No Docker service for the bridge yet.
+- Verified: a replay from a notebook to the lab rosbridge over Tailscale during a 70 s capture produced `h10_ecg`, `h10_acc` and `h10_hr` CSVs (`meta.json` complete, no errors).
+
 ## Planned devices (not implemented)
-
-### Polar H10 chest strap
-
-- BLE Heart Rate Service (0x180D), Heart Rate Measurement characteristic (0x2A37): heart rate in bpm and, when the strap sends them, RR intervals (to verify against the strap model).
-- A node can publish one `ControlEvent` per beat (`source: h10`, timestamp = receive time, optionally minus a fixed latency) and its raw bpm/RR on its own topic, declared in `capture_sources.yaml`.
-- BLE from a container needs host networking plus access to the host's D-Bus / BlueZ (for example mounting `/var/run/dbus`) or privileged mode; the alternative is running the node on the host. To verify. On Docker Desktop for Windows, BLE is not reachable from Linux containers, so run the node on the host.
 
 ### Nihon Kohden SVM-7500 analyzer
 
@@ -55,7 +67,7 @@ To give a new source its own icon, add a line to `CONTROL_SOURCES`.
 ## Checklist: adding a new ground-truth source
 
 1. Decide the raw topic(s) and message type. Reuse an existing type, or add one to `aims_msgs` if an external repository must publish it (keep the copies identical).
-2. Write the node (in `aims_ws/src/csi/csi/` and register it in `setup.py`, or in the external repository). Publish with `time.time_ns()` at the moment of the event.
+2. Write the producer: a ROS node (in `aims_ws/src/csi/csi/` and registered in `setup.py`, or in the external repository), or a standalone bridge that publishes through rosbridge like `devices/h10_bridge/` (any OS, see ADR-0012). Publish with `time.time_ns()` at the moment of the event.
 3. For the dashboard, publish a `ControlEvent` with a unique `source` on `/breath_control` or `/heart_control`. Optionally add the source to `CONTROL_SOURCES` in `rosControllerMonitoring.js`.
 4. Add one entry to `aims_ws/src/csi/config/capture_sources.yaml` for the raw topic.
 5. Add dependencies to `requirements/core.in` and recompile the lock, or run the node on the host.

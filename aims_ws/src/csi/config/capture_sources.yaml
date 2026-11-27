@@ -1,6 +1,7 @@
 # Topics recorded by the persistence_action node, one entry per source.
 # Keys: topic, type (pkg/msg/Type), fields (dotted paths, csv writer),
-# explode (one row per element of that array field), qos (latched),
+# explode (one row per element of that array field, or of a list of
+# same-length array fields), qos (latched),
 # writer (csv by default, or csi_npz).
 # /breath_control and /heart_control are UI-only and are not recorded.
 sources:
@@ -15,3 +16,18 @@ sources:
     topic: /ui/breath_annotation
     type: aims_msgs/msg/ControlEvent
     fields: [timestamp, source]
+  # Polar H10 chest strap, published by devices/h10_bridge through rosbridge.
+  h10_ecg:
+    topic: /h10/ecg
+    type: aims_msgs/msg/H10Ecg
+    fields: [sensor_ns, bridge_ns, samples_uv]
+    explode: samples_uv
+  h10_acc:
+    topic: /h10/acc
+    type: aims_msgs/msg/H10Acc
+    fields: [sensor_ns, bridge_ns, sample_rate_hz, range_g, x_mg, y_mg, z_mg]
+    explode: [x_mg, y_mg, z_mg]
+  h10_hr:
+    topic: /h10/hr
+    type: aims_msgs/msg/H10Hr
+    fields: [bridge_ns, bpm, rr_ms]

@@ -7,6 +7,9 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/ControlEvent.msg"
+  "msg/H10Acc.msg"
+  "msg/H10Ecg.msg"
+  "msg/H10Hr.msg"
   "msg/WavePeak.msg"
   DEPENDENCIES std_msgs
 )

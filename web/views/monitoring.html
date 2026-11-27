@@ -131,6 +131,7 @@
               <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48 relative overflow-hidden">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Resp. rate</span>
+                  <!-- Blinks on /breath_control events from every source (see docs/ground-truth-topics.md) -->
                   <span class="text-sky-500 text-xl" id="lung-beat" style="visibility: hidden;"><i class="bi bi-lungs-fill"></i></span>
                 </div>
                 <div class="my-3 flex items-baseline space-x-1">
@@ -147,6 +148,7 @@
               <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col justify-between h-48 relative overflow-hidden">
                 <div class="flex items-center justify-between">
                   <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Heart rate</span>
+                  <!-- Blinks on /heart_control events from every source: with several sources it looks faster than the real rate (see docs/ground-truth-topics.md) -->
                   <span class="text-red-500 text-xl" id="heart-beat" style="visibility: hidden;"><i class="bi bi-heart-fill"></i></span>
                 </div>
                 <div class="my-3 flex items-baseline space-x-1">

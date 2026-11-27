@@ -5,6 +5,7 @@ from types import SimpleNamespace as NS
 
 from csi import capture_writers as cw
 import numpy as np
+import pytest
 
 REQUEST = {'capture_name': 'run 1', 'subject_id': 's/01',
            'rx_nic_model': 'AX210', 'tx_nic_model': 'AX210',
@@ -36,6 +37,11 @@ def test_dotted_field_and_explode():
     assert cw.build_rows(msg, ['ok', 'raw'], 5) == [[5, 1, '1 2']]
     rows = cw.build_rows(msg, ['header.stamp.sec', 'vals'], 5, 'vals')
     assert rows == [[5, 7, 1], [5, 7, 2], [5, 7, 3]]
+    acc = NS(t=9, x=[1, 2], y=[3, 4], z=[5, 6])
+    rows = cw.build_rows(acc, ['t', 'x', 'y', 'z'], 5, ['x', 'y', 'z'])
+    assert rows == [[5, 9, 1, 3, 5], [5, 9, 2, 4, 6]]
+    with pytest.raises(ValueError):
+        cw.build_rows(NS(x=[1], y=[]), ['x', 'y'], 5, ['x', 'y'])
 
 
 def test_csv_header_without_rows(tmp_path):

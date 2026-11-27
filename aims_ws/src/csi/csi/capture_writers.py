@@ -72,8 +72,13 @@ def load_sources(path):
         fields = cfg.get('fields')
         if writer == 'csv' and (not isinstance(fields, list) or not fields):
             raise ValueError(f'{where}: csv writer needs a fields list')
-        if cfg.get('explode') not in [None] + (fields or []):
-            raise ValueError(f'{where}: explode must be one of fields')
+        explode = cfg.get('explode')
+        if isinstance(explode, str):
+            explode = cfg['explode'] = [explode]
+        if explode is not None and (
+                not isinstance(explode, list) or not explode
+                or any(e not in (fields or []) for e in explode)):
+            raise ValueError(f'{where}: explode must be one or more of fields')
         if cfg.get('qos') not in (None, 'latched'):
             raise ValueError(f'{where}: qos must be latched or absent')
     return sources
@@ -121,14 +126,24 @@ def to_cell(value):
 
 
 def build_rows(msg, fields, host_ns, explode=None):
-    """Build rows for one message; explode gives one row per element."""
+    """Build rows for one message.
+
+    explode: a field name or a list of same-length array fields; gives one
+    row per element, the other fields repeated.
+    """
     values = [get_field(msg, f) for f in fields]
     if explode is None:
         return [[host_ns] + [to_cell(v) for v in values]]
-    i = fields.index(explode)
-    return [[host_ns] + [to_cell(e if j == i else v)
-                         for j, v in enumerate(values)]
-            for e in values[i]]
+    if isinstance(explode, str):
+        explode = [explode]
+    idx = [fields.index(e) for e in explode]
+    if len({len(values[i]) for i in idx}) > 1:
+        raise ValueError(f'explode fields {explode} have different lengths')
+    rows = []
+    for k in range(len(values[idx[0]])):
+        rows.append([host_ns] + [to_cell(v[k] if j in idx else v)
+                                 for j, v in enumerate(values)])
+    return rows
 
 
 class CsvWriter:
